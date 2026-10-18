@@ -29,7 +29,7 @@ letter_main() {
       *) [[ "$1" == *=* && "$1" != =* ]] || { echo "Invalid Hydra override: $1" >&2; return 2; }; extra+=("$1"); shift ;;
     esac
   done
-  [[ "$dataset" =~ ^(beauty|sports|toys)$ ]] || { echo 'dataset must be beauty/sports/toys' >&2; return 2; }
+  [[ "$dataset" =~ ^(beauty|sports|toys|steam|home_and_kitchen)$ ]] || { echo 'dataset must be beauty/sports/toys/steam/home_and_kitchen' >&2; return 2; }
   [[ "$seed" =~ ^[0-9]+$ && "$nproc" =~ ^[1-9][0-9]*$ && "$port" =~ ^[0-9]+$ ]] || { echo 'Invalid numeric option' >&2; return 2; }
   [[ "$gpus" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo 'Invalid GPU list' >&2; return 2; }
   local -a gpu_array=(); IFS=',' read -r -a gpu_array <<< "$gpus"

@@ -1,0 +1,16 @@
+# LIGER 风格独立子集；不声明与原论文逐用户一致。
+dataset: steam
+source_dir: data/steam/readable
+output_dir: data/steam/prepared/stride7_5core_v1
+protocol: steam-binary-user-stride7-after-unique-neighbor-5core-v1
+items_file: items.jsonl
+interactions_file: interactions.jsonl
+user_core: 5
+item_core: 5
+deduplicate: false
+user_stride: 7
+item_shards: 32
+sequence_shards: 128
+expected_world_size: 2
+expected_item_workers: 12
+expected_sequence_workers: 32

@@ -77,6 +77,20 @@ def base_args():
     ]
 
 
+@pytest.mark.parametrize("dataset", ["steam", "home_and_kitchen"])
+@pytest.mark.parametrize("equals", [True, False])
+def test_new_dataset_name_preserves_script_contract(bash, dataset, equals):
+    args = base_args()
+    args[args.index("beauty")] = dataset
+    notes = ["--notes=adapter check"] if equals else ["--notes", "adapter check"]
+    result = invoke(bash, args + notes + ["--dry-run", "seed=200"])
+    assert result.returncode == 0, result.stderr
+    assert f"dataset_name={dataset}" in result.stdout
+    assert 'data_dir="data/beauty with spaces"' in result.stdout
+    assert 'logger.wandb.notes="adapter check"' in result.stdout
+    assert result.stdout.splitlines()[-1] == "seed=200"
+
+
 @pytest.mark.parametrize("equals", [True, False])
 def test_notes_and_override_precedence(bash, equals):
     notes = 'test "LETTER" \\ check'

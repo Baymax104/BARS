@@ -1,0 +1,15 @@
+dataset: home_and_kitchen
+source_dir: data/home_and_kitchen/readable
+output_dir: data/home_and_kitchen/prepared/full_5core_v1
+protocol: amazon2014-home-kitchen-unique-neighbor-5core-loo-v1
+items_file: items.jsonl
+interactions_file: interactions.jsonl
+user_core: 5
+item_core: 5
+deduplicate: false
+user_stride: 1
+item_shards: 32
+sequence_shards: 128
+expected_world_size: 2
+expected_item_workers: 12
+expected_sequence_workers: 32
