@@ -4,7 +4,6 @@ import torch
 from torch.nn import functional as F
 
 from src.recommendation.copmrec.protocol import ScratchTrainingProtocol
-from src.recommendation.liger.candidate_guidance import mix_log_probs
 
 
 class FullCatalogObjective(ScratchTrainingProtocol):
@@ -49,9 +48,7 @@ class FullCatalogObjective(ScratchTrainingProtocol):
         for depth in range(self.num_hierarchies):
             _, gen, content, _ = processor.distributions(prefix, outputs.logits[:, depth].float())
             target = target_ids[:, depth, None].long()
-            target_log_probs.append(
-                mix_log_probs(gen.gather(1, target), content.gather(1, target), self.dynamic_gate.bias)
-            )
+            target_log_probs.append(self.target_mixture_log_probs(gen.gather(1, target), content.gather(1, target)))
             prefix = torch.cat((prefix, tokens[:, depth, None]), dim=1)
         mixture_loss = -torch.stack(target_log_probs).mean()
         return dict(
@@ -59,5 +56,5 @@ class FullCatalogObjective(ScratchTrainingProtocol):
             sid_loss=outputs.loss,
             content_loss=dense_loss,
             mixture_loss=mixture_loss,
-            mixture_alpha=self.dynamic_gate.bias.sigmoid().detach(),
+            mixture_alpha=self.effective_mixture_alpha(),
         )

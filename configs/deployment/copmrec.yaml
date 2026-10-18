@@ -1,0 +1,35 @@
+# @package _global_
+# 本次预测身份与 checkpoint 中保留的原训练契约分开登记。
+inference_deployment_mode: hybrid
+alpha_policy: learned
+alpha_source: checkpoint
+fixed_mixture_alpha: null
+copmrec_deployment_modes:
+  hybrid:
+    candidate_pool: beam_plus_all_cold
+    eligibility_protocol: copmrec-hybrid-history-exclusion-off-v1
+    score_rule: unchanged_candidate_joint_logits
+  dense:
+    candidate_pool: all_catalog
+    eligibility_protocol: copmrec-final-history-exclusion-off-v1
+    score_rule: unchanged_full_catalog_logits
+deployment_contract:
+  protocol: copmrec-hybrid-deployment-v1
+  mode: ${model.root.prediction_mode}
+  generation_candidates: ${model.root.generation_candidates}
+  candidate_strategy: ${model.root.candidate_strategy}
+  candidate_pool: ${copmrec_deployment_modes.${model.root.prediction_mode}.candidate_pool}
+  final_score: joint_catalog_logits
+  rank_ties: stable_catalog_row
+  history_exclusion: false
+  alpha_policy: ${alpha_policy}
+  alpha_source: ${alpha_source}
+  fixed_mixture_alpha: ${fixed_mixture_alpha}
+history_eligibility_contract:
+  protocol: ${copmrec_deployment_modes.${model.root.prediction_mode}.eligibility_protocol}
+  history_exclusion: false
+  history_representation: unchanged
+  score_rule: ${copmrec_deployment_modes.${model.root.prediction_mode}.score_rule}
+  rank_ties: stable_catalog_row
+  cold_items_eligible: true
+  single_process: true

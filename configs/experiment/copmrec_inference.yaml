@@ -1,26 +1,21 @@
 # @package _global_
 defaults:
 - liger_inference
+- /deployment@_global_: copmrec
 - override /model@model: copmrec
 - _self_
 copmrec_version: v2
 group: paper_main_copmrec_${dataset_name}
-task_name: copmrec_v2_${dataset_name}_seed${seed}_inference
+task_name: copmrec_v2_${dataset_name}_seed${seed}_${model.root.prediction_mode}_inference
 baseline_protocol: copmrec-unified-scratch-50k-v1
 checkpoint_sha256: ???
 checkpoint_reference: ${ckpt_path}
 unified_scratch_contract: null
-history_eligibility_contract:
-  protocol: copmrec-final-history-exclusion-off-v1
-  history_exclusion: false
-  history_representation: unchanged
-  score_rule: unchanged_full_catalog_logits
-  rank_ties: stable_catalog_row
-  cold_items_eligible: true
-  single_process: true
 source_snapshot:
   enabled: true
 model:
+  root:
+    prediction_mode: ${inference_deployment_mode}
   training_model_config: null
 callbacks:
   wandb_artifact_writer:
@@ -28,6 +23,7 @@ callbacks:
     metadata:
       unified_scratch_contract: ${unified_scratch_contract}
       history_eligibility_contract: ${history_eligibility_contract}
+      deployment_contract: ${deployment_contract}
       checkpoint_identity:
         reference: ${checkpoint_reference}
         sha256: ${checkpoint_sha256}
@@ -50,7 +46,7 @@ dense_ce_support:
   validation_support: all_catalog
 logger:
   wandb:
-    notes: CoPMRec v2；固定自身own-best，完整目录dense，无历史排除，单卡Testing。
+    notes: CoPMRec v2；自身own-best；部署=${model.root.prediction_mode}；beam=${model.root.generation_candidates}；候选=${deployment_contract.candidate_pool}；joint catalog logits重排；alpha=${alpha_policy}/${deployment_contract.alpha_source}；无历史排除，单卡Testing。
     tags:
     - copmrec-formal-v2
     - formal-${evaluation_split}
@@ -59,6 +55,7 @@ logger:
     - v2
     - joint-only
     - final-history-exclusion-off
+    - deployment-${model.root.prediction_mode}
 native_view_ce: null
 evidence_phase: formal
 formal_release_id: copmrec-v2

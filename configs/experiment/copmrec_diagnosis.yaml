@@ -21,6 +21,7 @@ diagnosis_backbone:
   root:
     _target_: src.recommendation.copmrec.diagnosis.source_model
     source_variant: ${diagnosis_variant}
+    prediction_mode: dense
 logger:
   wandb:
     notes: M3 固定来源单卡 Trainer.test；仅登记实证；不更新参数。
@@ -33,10 +34,13 @@ source_snapshot:
   enabled: true
 method_version: v2
 copmrec_version: v2
-evaluation_protocol: copmrec-v2-ablation-20261009-v1
+hits_deployment_mode: hybrid
+expected_deployment_protocol: ${model.deployment_protocols.${diagnosis_analysis}}
+evaluation_protocol: ${model.evaluation_protocols.${diagnosis_analysis}}
 exclude_history: false
 model:
   root:
     exclude_history: ${exclude_history}
     evaluation_protocol: ${evaluation_protocol}
     method_version: ${method_version}
+    expected_deployment_protocol: ${expected_deployment_protocol}

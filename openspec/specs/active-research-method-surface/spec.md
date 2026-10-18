@@ -26,11 +26,13 @@ CoPMRec SHALL 使用正式 v2 联合视图与 learned mass probability mixture�
 - **THEN** 配置装配或模型初始化必须失败，且仓库中不存在对应专用启动脚本
 
 ### Requirement: Active checkpoints SHALL remain load-compatible
-清理 SHALL 保持当前 LIGER 与正式 CoPMRec v2 checkpoint 的输入身份检查和严格恢复；旧 CoPMRec 开发 checkpoint SHALL NOT 被改标签当作当前正式版本恢复。
+
+清理与部署迁移 SHALL 保持当前 LIGER 与正式 CoPMRec v2 checkpoint 的输入身份检查和严格恢复；旧 CoPMRec 开发 checkpoint SHALL NOT 被改标签当作当前正式版本恢复。CoPMRec 的训练 checkpoint 身份 SHALL 与本次 hybrid/dense 部署契约分离，允许复用已有正式 own-best，不改写文件或放松目标、变体、seed、预算与完整状态校验。
 
 #### Scenario: Load current CoPMRec checkpoint state
+
 - **WHEN** checkpoint 来自相同正式版本、损失契约与输入目录
-- **THEN** 当前模型严格恢复状态并保持预测一致；旧版本或身份不匹配的 checkpoint 被拒绝
+- **THEN** 当前模型严格恢复状态，并在相同部署模式下保持预测一致；显式部署切换由独立契约标注，旧版本或身份不匹配的 checkpoint 被拒绝
 
 ### Requirement: Retired method names SHALL be absent from executable surfaces
 结构回归检查 SHALL 扫描源码 import、Hydra `_target_`、根目录脚本和测试，确保已淘汰方法名称不再形成可执行入口。

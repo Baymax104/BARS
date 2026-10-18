@@ -5,3 +5,34 @@ defaults:
 root:
   _target_: src.recommendation.copmrec.ablation.CoPMRecAblation
   variant: ${ablation_variant}
+ablation_weights:
+  no_mixture:
+    joint_catalog_ce: 1.0
+    mixture_nll: 0.0
+  no_residual:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+  no_joint_ce:
+    joint_catalog_ce: 0.0
+    mixture_nll: 1.0
+  fixed_alpha_one:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+# content_mixture_alpha 是基础兼容参数；这里登记变体实际使用的 gate 策略。
+ablation_alpha:
+  no_mixture:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
+  no_residual:
+    policy: learned
+    source: checkpoint
+    fixed_mixture_alpha: null
+  no_joint_ce:
+    policy: learned
+    source: checkpoint
+    fixed_mixture_alpha: null
+  fixed_alpha_one:
+    policy: frozen_1
+    source: fixed
+    fixed_mixture_alpha: 1.0

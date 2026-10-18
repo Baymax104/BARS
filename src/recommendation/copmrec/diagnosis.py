@@ -14,7 +14,6 @@ from src.common.writers.structured_analysis import StructuredAnalysisOutput
 from src.data.utils import gather_predictions_by_keys
 from src.recommendation.copmrec.ablation import M3_PROTOCOL, CoPMRecAblation
 from src.recommendation.copmrec.module import CoPMRec
-from src.recommendation.liger.candidate_guidance import mix_log_probs
 
 
 def source_model(*, source_variant, **kwargs):
@@ -72,7 +71,7 @@ def prefix_observations(model, x, labels, *, mixed=True):
                 valid & ((log_probability > chosen) | ((log_probability == chosen) & (indices < target)))
             ).sum(-1)
         if mixed:
-            distribution = mix_log_probs(gen, mass, model.dynamic_gate.bias)
+            distribution = model.target_mixture_log_probs(gen, mass)
             probability = distribution.exp()
             row.update(
                 mixed_probability=probability.gather(1, target).squeeze(1),
@@ -109,6 +108,7 @@ class CoPMRecDiagnosis(LightningModule):
         exclude_history=False,
         evaluation_protocol=None,
         method_version=None,
+        expected_deployment_protocol=None,
     ):
         super().__init__()
         if exclude_history is not False:
@@ -125,7 +125,18 @@ class CoPMRecDiagnosis(LightningModule):
         if analysis == "hits" and (
             not prediction_bundles or set(prediction_bundles) != {"full", "no_mixture", "no_residual", "no_joint_ce"}
         ):
-            raise ValueError("M1 requires Full and all five keyed prediction bundles.")
+            raise ValueError("M1 requires Full and all three ablation keyed prediction bundles.")
+        if evaluation_protocol == "copmrec-hybrid-deployment-v1":
+            expected_deployment_protocol = expected_deployment_protocol or evaluation_protocol
+        if expected_deployment_protocol is not None:
+            if analysis != "hits" or expected_deployment_protocol != "copmrec-hybrid-deployment-v1":
+                raise ValueError("Only hybrid hits analysis accepts an explicit deployment protocol.")
+            if evaluation_protocol not in (None, expected_deployment_protocol):
+                raise ValueError("Hits evaluation protocol must match its prediction deployment protocol.")
+            for name, bundle in prediction_bundles.items():
+                contract = bundle.auxiliary.get("deployment_contract", {})
+                if contract.get("protocol") != expected_deployment_protocol or contract.get("mode") != "hybrid":
+                    raise ValueError(f"M1 {name} is missing verified hybrid deployment metadata.")
         self.backbone, self.analysis = backbone, analysis
         self.prediction_bundles = prediction_bundles or {}
         self.frequencies = torch.as_tensor(frequencies).cpu()
@@ -147,7 +158,7 @@ class CoPMRecDiagnosis(LightningModule):
             raise ValueError("Bootstrap repetitions must be positive.")
         self.metadata = dict(
             protocol=M3_PROTOCOL,
-            evaluation_protocol=evaluation_protocol or M3_PROTOCOL,
+            evaluation_protocol=evaluation_protocol or expected_deployment_protocol or M3_PROTOCOL,
             method_version=method_version,
             ranking_history_exclusion=exclude_history,
             analysis=analysis,
@@ -158,6 +169,9 @@ class CoPMRecDiagnosis(LightningModule):
                 if OmegaConf.is_config(input_references)
                 else input_references
             ),
+            prediction_deployment_contracts={
+                name: bundle.auxiliary.get("deployment_contract") for name, bundle in self.prediction_bundles.items()
+            },
             catalog_sha256=backbone.catalog_sha256,
             frequency_boundaries=self.boundaries,
             training_seed=backbone.initialization_seed,
@@ -345,7 +359,7 @@ class CoPMRecDiagnosis(LightningModule):
                         "variant": variant,
                         "depth": depth + 1,
                         **{key: float(value[i]) for key, value in values.items()},
-                        "alpha": float(model.dynamic_gate.bias.sigmoid()) if is_full else None,
+                        "alpha": float(model.effective_mixture_alpha()) if is_full else None,
                     }
                     for field in ("mixed_probability", "mixed_nll", "mixed_entropy", "mixed_rank"):
                         row.setdefault(field, None)

@@ -8,11 +8,11 @@ import torch
 from copmrec_fixtures import copmrec, snapshot
 from test_liger import batch
 
-from src.recommendation.copmrec.ablation import VARIANTS
+from src.recommendation.copmrec.ablation import TRAINING_VARIANTS, VARIANTS
 from src.recommendation.copmrec.diagnosis import CoPMRecDiagnosis, prefix_observations
 
 
-@pytest.mark.parametrize("variant", [None, *VARIANTS])
+@pytest.mark.parametrize("variant", [None, *TRAINING_VARIANTS])
 def test_each_objective_has_complete_trainable_gradients_and_restores_own_best(variant):
     original, saved = snapshot(variant)
     actual = copmrec(variant, training_model_config=None).eval()
@@ -28,7 +28,7 @@ def test_each_objective_has_complete_trainable_gradients_and_restores_own_best(v
         actual.on_predict_start()
 
 
-@pytest.mark.parametrize("variant", [None, *VARIANTS])
+@pytest.mark.parametrize("variant", [None, *TRAINING_VARIANTS])
 def test_loss_is_exactly_the_declared_active_terms_and_disabled_parameters_stay_zero(variant):
     actual = copmrec(variant)
     values = actual.losses(batch()[0], batch()[1].target_ids, training=True)
@@ -42,6 +42,8 @@ def test_loss_is_exactly_the_declared_active_terms_and_disabled_parameters_stay_
     values["loss"].backward()
     if variant == "no_mixture":
         assert actual.dynamic_gate.bias.grad is None and actual.dynamic_gate.bias.sigmoid().item() == 0.5
+    if variant == "fixed_alpha_one":
+        assert actual.dynamic_gate.bias.grad is None and values["mixture_alpha"].item() == 1.0
     if variant == "no_residual":
         assert actual.collaborative_residual.weight.grad is None
         assert torch.count_nonzero(actual.item_content_residual(torch.arange(6))) == 0
@@ -60,7 +62,7 @@ def test_joint_ce_directly_supervises_residual():
 
 
 def test_history_and_cold_rows_remain_eligible_with_stable_ties():
-    actual = copmrec().eval()
+    actual = copmrec(prediction_mode="dense").eval()
     scores = torch.zeros(2, 6)
     with patch.object(actual, "dense_logits", return_value=scores):
         predicted = actual.retrieve(batch()[0])[0]
@@ -73,8 +75,8 @@ def test_history_and_cold_rows_remain_eligible_with_stable_ties():
         torch.testing.assert_close(actual.retrieve(batch()[0])[0][:, :2], actual.semantic_ids[4:].expand(2, -1, -1))
 
 
-@pytest.mark.parametrize("origin", [None, *VARIANTS])
-@pytest.mark.parametrize("destination", [None, *VARIANTS])
+@pytest.mark.parametrize("origin", [None, *TRAINING_VARIANTS])
+@pytest.mark.parametrize("destination", [None, *TRAINING_VARIANTS])
 def test_restore_never_silently_relabels_other_variants(origin, destination):
     if origin == destination:
         return
@@ -137,7 +139,7 @@ def test_v2_mechanism_paths_use_four_current_bundles_or_own_checkpoint_and_repro
     original, saved = snapshot(catalog=catalog, codebook_size=4, top_k=10)
     original.eval()
     x, y = batch()
-    bundle = ModelOutput(x.output_keys, original.retrieve(x)[0].flip(0))
+    bundle = ModelOutput(x.output_keys, original.retrieve(x, "dense")[0].flip(0))
     x.output_keys = x.output_keys.flip(0)
     paths = (
         {name: bundle for name in ["full", *VARIANTS]}

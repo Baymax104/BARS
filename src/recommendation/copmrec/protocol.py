@@ -48,14 +48,16 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
                 "Unified scratch requires a nonnegative integer seed, no pretrained weights and the fixed residual protocol."
             )
         kwargs.setdefault("evaluation_mode", "dense")
-        kwargs.setdefault("prediction_mode", "dense")
+        kwargs.setdefault("prediction_mode", "hybrid")
         if (
             kwargs["evaluation_mode"] != "dense"
-            or kwargs["prediction_mode"] != "dense"
+            or kwargs["prediction_mode"] not in {"dense", "hybrid"}
             or kwargs.get("candidate_trace", False)
             or kwargs.get("path_trace", False)
         ):
-            raise ValueError("Unified scratch requires fixed dense selection/deployment without target traces.")
+            raise ValueError(
+                "Unified scratch requires dense selection and dense/hybrid prediction without target traces."
+            )
         super().__init__(residual_scale=1, residual_lr_multiplier=self.lr_multiplier, **kwargs)
         self.initialization_seed = initialization_seed
         self.restored_step = None
@@ -91,7 +93,7 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
         if label is None:
             raise ValueError("Unified scratch checkpoint selection requires labels.")
         losses = self.losses(model_input, label.target_ids)
-        # 验证与部署均使用无排除的完整目录 dense 排序。
+        # checkpoint 选优始终使用 dense，不随部署模式改变。
         sids, scores = Liger.retrieve(self, model_input, "dense")
         return {**losses, "generated_ids": sids, "labels": label.target_ids, "marginal_probs": scores}
 

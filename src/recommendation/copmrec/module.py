@@ -1,8 +1,9 @@
-"""CoPMRec v2：仅监督联合目录视图，所有阶段均保留历史商品。"""
+"""CoPMRec v2：联合视图训练、dense 选优与独立的 hybrid 部署。"""
 
 import torch
 
 from src.recommendation.copmrec.catalog import FullCatalogObjective
+from src.recommendation.liger.module import Liger
 
 
 class CoPMRec(FullCatalogObjective):
@@ -24,15 +25,37 @@ class CoPMRec(FullCatalogObjective):
 
     @property
     def unified_scratch_contract(self):
+        # 既有 checkpoint 的训练身份保持原值；当前部署由独立契约描述。
         return {**super().unified_scratch_contract, "deployment": "raw_full_catalog_dense_without_history_exclusion"}
 
     @property
-    def history_eligibility_contract(self):
+    def deployment_contract(self):
+        alpha_policy = getattr(self, "ablation_contract", {}).get("alpha_policy", self.mixture_alpha_policy)
+        fixed_alpha = 0.5 if alpha_policy == "frozen_0.5" else self.fixed_mixture_alpha_value
         return dict(
-            protocol="copmrec-final-history-exclusion-off-v1",
+            protocol="copmrec-hybrid-deployment-v1",
+            mode=self.prediction_mode,
+            generation_candidates=self.generation_candidates,
+            candidate_strategy=self.candidate_strategy,
+            candidate_pool="beam_plus_all_cold" if self.prediction_mode == "hybrid" else "all_catalog",
+            final_score="joint_catalog_logits",
+            rank_ties="stable_catalog_row",
+            history_exclusion=False,
+            alpha_policy=alpha_policy,
+            alpha_source="fixed" if fixed_alpha is not None else "checkpoint",
+            fixed_mixture_alpha=fixed_alpha,
+        )
+
+    @property
+    def history_eligibility_contract(self):
+        hybrid = self.prediction_mode == "hybrid"
+        return dict(
+            protocol=(
+                "copmrec-hybrid-history-exclusion-off-v1" if hybrid else "copmrec-final-history-exclusion-off-v1"
+            ),
             history_exclusion=False,
             history_representation="unchanged",
-            score_rule="unchanged_full_catalog_logits",
+            score_rule="unchanged_candidate_joint_logits" if hybrid else "unchanged_full_catalog_logits",
             rank_ties="stable_catalog_row",
             cold_items_eligible=True,
             single_process=True,
@@ -47,12 +70,9 @@ class CoPMRec(FullCatalogObjective):
 
     @torch.no_grad()
     def retrieve(self, model_input, mode=None, target_ids=None):
-        if mode not in (None, "dense") or target_ids is not None:
-            raise ValueError("CoPMRec v2 requires dense prediction without target traces.")
-        _, _, query = self.encode(model_input.input_ids, model_input.attention_mask)
-        scores = self.dense_logits(query)
-        rows = scores.argsort(dim=-1, descending=True, stable=True)[:, : self.top_k]
-        return self.semantic_ids[rows], scores.gather(1, rows)
+        if mode not in (None, "dense", "hybrid") or target_ids is not None:
+            raise ValueError("CoPMRec v2 requires dense/hybrid prediction without target traces.")
+        return Liger.retrieve(self, model_input, mode=mode)
 
     def on_save_checkpoint(self, checkpoint):
         super().on_save_checkpoint(checkpoint)

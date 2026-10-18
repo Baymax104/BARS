@@ -7,8 +7,16 @@ source ./liger_common.sh
 common_args=()
 split="testing"
 checkpoint_sha=""
+deployment=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --deployment)
+      [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "Error: --deployment requires hybrid or dense." >&2; exit 2; }
+      deployment="$2"; shift 2 ;;
+    --deployment=*)
+      deployment="${1#*=}"
+      [[ -n "$deployment" ]] || { echo "Error: --deployment requires hybrid or dense." >&2; exit 2; }
+      shift ;;
     --checkpoint-sha256)
       [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "Error: --checkpoint-sha256 requires a value." >&2; exit 2; }
       checkpoint_sha="$2"; shift 2 ;;
@@ -45,5 +53,12 @@ case "$split" in
   testing) split_args=(evaluation_split=testing evaluation_data_folder=testing) ;;
   *) echo "Error: --split requires validation or testing." >&2; exit 2 ;;
 esac
+deployment_args=()
+if [[ -n "$deployment" ]]; then
+  case "$deployment" in
+    hybrid|dense) deployment_args+=("model.root.prediction_mode=$deployment") ;;
+    *) echo "Error: --deployment requires hybrid or dense." >&2; exit 2 ;;
+  esac
+fi
 
-liger_launch inference experiment=copmrec_inference "checkpoint_sha256=\"$checkpoint_sha\"" "${split_args[@]}" "${common_args[@]}"
+liger_launch inference experiment=copmrec_inference "checkpoint_sha256=\"$checkpoint_sha\"" "${split_args[@]}" "${deployment_args[@]}" "${common_args[@]}"

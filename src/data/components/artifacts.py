@@ -31,12 +31,48 @@ def load_m3_checkpoint(reference, sha256, analysis, **kwargs):
     return None if analysis == "hits" else load_audited_checkpoint(reference, sha256, **kwargs)
 
 
-def load_m3_prediction_bundles(paths, analysis, **kwargs):
-    """统一解析诊断使用的 keyed bundle，保留 Artifact 消费记录。"""
+def load_m3_prediction_bundles(paths, analysis, expected_deployment_protocol=None, **kwargs):
+    """统一解析 keyed bundle；hybrid 主分析须核对每份 Artifact 的实际部署身份。"""
     if analysis == "prefix":
         return None
     names = list(paths) if analysis == "hits" else ["full"]
-    return {name: load_model_output(paths[name], field_name=f"prediction_paths.{name}", **kwargs) for name in names}
+    if expected_deployment_protocol is not None and (
+        analysis != "hits" or expected_deployment_protocol != "copmrec-hybrid-deployment-v1"
+    ):
+        raise ValueError("Only hybrid hits analysis accepts an explicit deployment protocol.")
+    outputs = {}
+    for name in names:
+        field_name = f"prediction_paths.{name}"
+        registry = get_resolved_artifact_registry()
+        first_record = len(registry.records())
+        output = load_model_output(paths[name], field_name=field_name, **kwargs)
+        references = [
+            record
+            for record in registry.records()[first_record:]
+            if record.field_name == field_name and record.original_uri == paths[name]
+        ]
+        contract = references[-1].metadata.get("deployment_contract") if references else None
+        if expected_deployment_protocol is not None:
+            required = dict(
+                protocol=expected_deployment_protocol,
+                mode="hybrid",
+                generation_candidates=20,
+                candidate_strategy="probability_mixture",
+                candidate_pool="beam_plus_all_cold",
+                final_score="joint_catalog_logits",
+                rank_ties="stable_catalog_row",
+                history_exclusion=False,
+                alpha_policy="frozen_0.5" if name == "no_mixture" else "learned",
+                alpha_source="fixed" if name == "no_mixture" else "checkpoint",
+                fixed_mixture_alpha=0.5 if name == "no_mixture" else None,
+            )
+            if not isinstance(contract, dict) or any(contract.get(key) != value for key, value in required.items()):
+                raise ValueError(f"{field_name} requires verified hybrid deployment Artifact metadata.")
+            output.auxiliary["deployment_contract"] = dict(contract)
+        elif isinstance(contract, dict) and contract.get("mode") != "dense":
+            raise ValueError(f"{field_name} cannot use hybrid output for legacy dense analysis.")
+        outputs[name] = output
+    return outputs
 
 
 def load_audited_checkpoint(reference: str, sha256: str, wandb_entity=None, wandb_project=None) -> dict:
@@ -161,8 +197,6 @@ def get_resolved_artifact_registry() -> ResolvedArtifactRegistry:
         registry = ResolvedArtifactRegistry()
         _DEFAULT_RESOLVED_ARTIFACT_REGISTRY.set(registry)
     return registry
-
-
 
 
 def load_model_output(

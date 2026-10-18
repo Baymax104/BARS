@@ -9,6 +9,8 @@ structured_analysis:
     protocol: ${m3_protocol}
     analysis: ${diagnosis_analysis}
     source_variant: ${diagnosis_variant}
+    evaluation_protocol: ${evaluation_protocol}
+    expected_deployment_protocol: ${expected_deployment_protocol}
 wandb_artifact_lineage:
   _target_: src.common.callbacks.wandb_artifact_lineage.WandbArtifactLineageCallback
   fail_on_missing_run: true

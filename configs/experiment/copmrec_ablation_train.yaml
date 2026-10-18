@@ -8,6 +8,8 @@ group: paper_ablation_copmrec_${dataset_name}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_${ablation_variant}_train
 evidence_phase: ablation
 m3_protocol: copmrec-v2-ablation-20261009-v1
+alpha_policy: ${model.ablation_alpha.${ablation_variant}.policy}
+fixed_mixture_alpha: ${model.ablation_alpha.${ablation_variant}.fixed_mixture_alpha}
 formal_release:
   evidence_phase: ablation
   variant: ${ablation_variant}
@@ -25,20 +27,11 @@ callbacks:
     metadata:
       m3_protocol: ${m3_protocol}
       ablation_variant: ${ablation_variant}
+      alpha_policy: ${alpha_policy}
+      fixed_mixture_alpha: ${fixed_mixture_alpha}
 training_objective:
   sid_ce: 1.0
   joint_catalog_ce: ${model.ablation_weights.${ablation_variant}.joint_catalog_ce}
   mixture_nll: ${model.ablation_weights.${ablation_variant}.mixture_nll}
   native_view_ce: 0.0
   native_view_computed: false
-model:
-  ablation_weights:
-    no_mixture:
-      joint_catalog_ce: 1.0
-      mixture_nll: 0.0
-    no_residual:
-      joint_catalog_ce: 1.0
-      mixture_nll: 1.0
-    no_joint_ce:
-      joint_catalog_ce: 0.0
-      mixture_nll: 1.0

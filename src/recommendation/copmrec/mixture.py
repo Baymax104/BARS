@@ -49,9 +49,27 @@ class JointMixtureCoPMRec(Liger):
             raise ValueError("Joint protocol requires unit SID and content loss weights.")
         self.dynamic_gate = JointConstantGate()
 
+    @property
+    def mixture_alpha_policy(self):
+        return "learned"
+
+    @property
+    def fixed_mixture_alpha_value(self):
+        return None
+
+    def effective_mixture_alpha(self):
+        return self.dynamic_gate.bias.sigmoid().detach()
+
+    def target_mixture_log_probs(self, generation, content):
+        return mix_log_probs(generation, content, self.dynamic_gate.bias)
+
     def candidate_processor(self, content_logits):
         return ProbabilityMixtureProcessor(
-            self.semantic_ids, content_logits, self.codebook_size, 0.0, gate=self.dynamic_gate
+            self.semantic_ids,
+            content_logits,
+            self.codebook_size,
+            0.0 if self.fixed_mixture_alpha_value is None else self.fixed_mixture_alpha_value,
+            gate=self.dynamic_gate if self.fixed_mixture_alpha_value is None else None,
         )
 
     def losses(self, model_input, target_ids, *, training=False):
@@ -79,9 +97,7 @@ class JointMixtureCoPMRec(Liger):
             _, gen, content, _ = processor.distributions(prefix, outputs.logits[:, depth].float())
             target = target_ids[:, depth, None].long()
             # 只取合法目标后再混合，避免无效分支 -inf/-inf 的反向 NaN。
-            target_log_probs.append(
-                mix_log_probs(gen.gather(1, target), content.gather(1, target), self.dynamic_gate.bias)
-            )
+            target_log_probs.append(self.target_mixture_log_probs(gen.gather(1, target), content.gather(1, target)))
             prefix = torch.cat((prefix, tokens[:, depth, None]), dim=1)
         mixture_loss = -torch.stack(target_log_probs).mean()
         return dict(
@@ -89,7 +105,7 @@ class JointMixtureCoPMRec(Liger):
             sid_loss=outputs.loss,
             content_loss=dense_loss,
             mixture_loss=mixture_loss,
-            mixture_alpha=self.dynamic_gate.bias.sigmoid().detach(),
+            mixture_alpha=self.effective_mixture_alpha(),
         )
 
     def predict_step(self, batch, batch_idx=0):
@@ -101,9 +117,9 @@ class JointMixtureCoPMRec(Liger):
                 copmrec_version=self.copmrec_version,
                 mechanism_control="learned_mass",
                 prefix_aggregation="mass",
-                content_mixture_alpha=self.dynamic_gate.bias.sigmoid().item(),
-                mixture_alpha_source="checkpoint",
-                fixed_mixture_alpha=None,
+                content_mixture_alpha=self.effective_mixture_alpha().item(),
+                mixture_alpha_source="checkpoint" if self.fixed_mixture_alpha_value is None else "fixed",
+                fixed_mixture_alpha=self.fixed_mixture_alpha_value,
             )
             if self.path_trace:
                 output.auxiliary["liger_paths"]["metadata"].update(metadata)
@@ -113,8 +129,8 @@ class JointMixtureCoPMRec(Liger):
         super().on_save_checkpoint(checkpoint)
         checkpoint["liger_joint_mixture"] = "liger-joint-mixture-v1"
         checkpoint["copmrec_version"] = self.copmrec_version
-        checkpoint["copmrec_alpha_policy"] = "learned"
-        checkpoint["copmrec_fixed_mixture_alpha"] = None
+        checkpoint["copmrec_alpha_policy"] = self.mixture_alpha_policy
+        checkpoint["copmrec_fixed_mixture_alpha"] = self.fixed_mixture_alpha_value
 
     def on_load_checkpoint(self, checkpoint):
         super().on_load_checkpoint(checkpoint)
@@ -123,7 +139,8 @@ class JointMixtureCoPMRec(Liger):
         if checkpoint.get("copmrec_version") != self.copmrec_version:
             raise ValueError("CoPMRec checkpoint version mismatch.")
         if (
-            checkpoint.get("copmrec_alpha_policy") != "learned"
-            or checkpoint.get("copmrec_fixed_mixture_alpha") is not None
+            checkpoint.get("copmrec_alpha_policy") != self.mixture_alpha_policy
+            or type(checkpoint.get("copmrec_fixed_mixture_alpha")) is not type(self.fixed_mixture_alpha_value)
+            or checkpoint.get("copmrec_fixed_mixture_alpha") != self.fixed_mixture_alpha_value
         ):
             raise ValueError("CoPMRec checkpoint alpha policy mismatch.")

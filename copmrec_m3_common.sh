@@ -32,7 +32,7 @@ copmrec_m3_parse() {
 }
 copmrec_m3_require_variant() {
   case "$m3_variant" in
-    no_mixture|no_residual|no_joint_ce) ;;
+    no_mixture|no_residual|no_joint_ce|fixed_alpha_one) ;;
     *) echo "Error: --variant requires a defined M3 ablation." >&2; return 2 ;;
   esac
 }

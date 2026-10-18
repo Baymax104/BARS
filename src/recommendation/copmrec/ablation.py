@@ -6,18 +6,38 @@ from src.recommendation.copmrec.module import CoPMRec
 
 M3_PROTOCOL = "copmrec-v2-ablation-20261009-v1"
 VARIANTS = ("no_mixture", "no_residual", "no_joint_ce")
+TRAINING_VARIANTS = (*VARIANTS, "fixed_alpha_one")
 
 
 class CoPMRecAblation(CoPMRec):
     def __init__(self, *, variant, **kwargs):
-        if variant not in VARIANTS:
+        if variant not in TRAINING_VARIANTS:
             raise ValueError(f"Unknown v2 ablation: {variant!r}.")
         self.variant = variant
         super().__init__(**kwargs)
-        if variant == "no_mixture":
+        if variant in {"no_mixture", "fixed_alpha_one"}:
             self.dynamic_gate.bias.requires_grad_(False)
         if variant == "no_residual":
             self.collaborative_residual.weight.requires_grad_(False)
+
+    @property
+    def mixture_alpha_policy(self):
+        return "frozen_1" if self.variant == "fixed_alpha_one" else super().mixture_alpha_policy
+
+    @property
+    def fixed_mixture_alpha_value(self):
+        return 1.0 if self.variant == "fixed_alpha_one" else super().fixed_mixture_alpha_value
+
+    def effective_mixture_alpha(self):
+        if self.variant == "fixed_alpha_one":
+            return self.dynamic_gate.bias.new_ones(())
+        return super().effective_mixture_alpha()
+
+    def target_mixture_log_probs(self, generation, content):
+        # 精确端点直接取内容条件质量，不使用 sigmoid 近似或无穷 gate。
+        if self.variant == "fixed_alpha_one":
+            return content
+        return super().target_mixture_log_probs(generation, content)
 
     @property
     def ablation_contract(self):
@@ -30,7 +50,7 @@ class CoPMRecAblation(CoPMRec):
                 joint_catalog_ce=int(self.variant != "no_joint_ce"),
                 mixture_nll=int(self.variant != "no_mixture"),
             ),
-            alpha_policy="frozen_0.5" if self.variant == "no_mixture" else "learned",
+            alpha_policy="frozen_0.5" if self.variant == "no_mixture" else self.mixture_alpha_policy,
             residual_mode="frozen_zero_both" if self.variant == "no_residual" else "shared_history_catalog",
         )
 
@@ -70,9 +90,11 @@ class CoPMRecAblation(CoPMRec):
 
     def on_load_checkpoint(self, checkpoint):
         state = checkpoint.get("state_dict", {})
-        zero_parameter = {"no_residual": "collaborative_residual.weight", "no_mixture": "dynamic_gate.bias"}.get(
-            self.variant
-        )
+        zero_parameter = {
+            "no_residual": "collaborative_residual.weight",
+            "no_mixture": "dynamic_gate.bias",
+            "fixed_alpha_one": "dynamic_gate.bias",
+        }.get(self.variant)
         if zero_parameter and torch.count_nonzero(state.get(zero_parameter, torch.ones(1))):
             raise ValueError("Disabled v2 component requires its frozen zero state.")
         super().on_load_checkpoint(checkpoint)
