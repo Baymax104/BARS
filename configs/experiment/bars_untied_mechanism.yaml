@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+- bars_untied_contributions
+- /model@diagnosis_backbone: copmrec
+- override /model@model: bars_untied_mechanism
+- _self_
+analysis_kind: generation_ranking
+diagnosis_backbone:
+  root:
+    _target_: src.recommendation.copmrec.ablation.CoPMRecAblation
+    variant: untied_residual
+    prediction_mode: hybrid
+trainer:
+  root:
+    accelerator: gpu
+    devices: ${devices}
+logger:
+  wandb:
+    notes: 固定Untied own-best；两搜索四排序，beam20加全部cold；同池比较catalog与合法decoder路径分数；production逐用户复现门禁；0参数更新。
+    tags: [bars, untied, mechanism, generation-ranking, beauty42]

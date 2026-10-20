@@ -33,7 +33,7 @@
 
 ### Requirement: 正式三臂消融与固定产物诊断
 
-消融入口 SHALL 支持原 no_mixture、no_residual、no_joint_ce 及新增 fixed_alpha_one，保留各臂自身的严格 checkpoint 身份；原三臂集合与四 bundle 机制分析 SHALL 保持原定义。机制入口 SHALL 通过统一 src.main 与 Trainer.test 执行 hits、residual、prefix 分析，不更新权重，并通过共享入口读取 keyed prediction bundle 及核验所需 checkpoint SHA256。
+消融入口 SHALL 支持原 no_mixture、no_residual、no_joint_ce、fixed_alpha_one 及新增 untied_residual，保留各臂自身的严格 checkpoint 身份；原三臂集合与四 bundle 机制分析 SHALL 保持原定义。机制入口 SHALL 通过统一 src.main 与 Trainer.test 执行 hits、residual、prefix 分析，不更新权重，并通过共享入口读取 keyed prediction bundle 及核验所需 checkpoint SHA256。
 
 #### Scenario: 选择消融或机制分析
 

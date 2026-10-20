@@ -94,7 +94,9 @@ class Liger(LightningModule):
         if candidate_strategy not in {"original", "probability_mixture"}:
             raise ValueError("Unknown candidate strategy.")
         self.candidate_strategy = candidate_strategy
-        if path_trace and (not candidate_trace or candidate_strategy != "probability_mixture" or prediction_mode != "hybrid"):
+        if path_trace and (
+            not candidate_trace or candidate_strategy != "probability_mixture" or prediction_mode != "hybrid"
+        ):
             raise ValueError("Path trace requires candidate_trace, probability_mixture and hybrid prediction.")
         self.path_trace = path_trace
         if not math.isfinite(content_mixture_alpha) or not 0 <= content_mixture_alpha <= 1:
@@ -110,7 +112,9 @@ class Liger(LightningModule):
         if sid_loss_weight + content_loss_weight <= 0:
             raise ValueError("At least one loss weight must be positive.")
         if evaluation_mode not in {"dense", "generative", "hybrid"} or prediction_mode not in {
-            "dense", "generative", "hybrid"
+            "dense",
+            "generative",
+            "hybrid",
         }:
             raise ValueError("Unknown LIGER retrieval mode.")
         keys = catalog["keys"].detach().cpu().long().reshape(-1)
@@ -200,6 +204,10 @@ class Liger(LightningModule):
         """派生模型可共享商品残差；默认不增加运算或改变随机序列。"""
         return None
 
+    def item_history_residual(self, rows):
+        """默认沿用目录残差，派生模型可独立定义历史侧参数。"""
+        return self.item_content_residual(rows)
+
     def encode(self, input_ids, attention_mask):
         if input_ids.ndim != 2 or attention_mask.shape != input_ids.shape:
             raise ValueError("Invalid history batch shape.")
@@ -221,7 +229,7 @@ class Liger(LightningModule):
         # 与官方一致：先复制各 SID token 的内容，再执行含 dropout 的投影。
         repeated = contents.repeat_interleave(h, dim=1)
         projected = self.content_projection(repeated)
-        residual = self.item_content_residual(rows)
+        residual = self.item_history_residual(rows)
         if residual is not None:
             history_residual = projected.new_zeros(batch, length // h, projected.shape[-1])
             history_residual[valid_items] = residual
@@ -445,9 +453,7 @@ class Liger(LightningModule):
                     candidate_strategy=self.candidate_strategy,
                     content_mixture_alpha=self.content_mixture_alpha,
                     candidate_normalization=(
-                        "legal_conditional"
-                        if self.candidate_strategy == "probability_mixture"
-                        else "full_vocabulary"
+                        "legal_conditional" if self.candidate_strategy == "probability_mixture" else "full_vocabulary"
                     ),
                 ),
             )

@@ -1,5 +1,6 @@
 """脚本实际解析、Hydra 装配、单双卡及退休入口。"""
 
+import re
 import shlex
 import subprocess
 
@@ -29,7 +30,9 @@ def launch(bash, script, args, prefix=""):
     return subprocess.run([bash], input=command, cwd=ROOT, text=True, capture_output=True)
 
 
-@pytest.mark.parametrize("variant", [None, "no_mixture", "no_residual", "no_joint_ce", "fixed_alpha_one"])
+@pytest.mark.parametrize(
+    "variant", [None, "no_mixture", "no_residual", "no_joint_ce", "fixed_alpha_one", "untied_residual"]
+)
 @pytest.mark.parametrize("stage", ["train", "inference"])
 @pytest.mark.parametrize("equals", [False, True])
 def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash, variant, stage, equals):
@@ -51,6 +54,14 @@ def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash,
     OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     assert cfg.copmrec_version == cfg.implementation_version == cfg.method_version == "v2"
     assert cfg.logger.wandb.notes == notes
+    expected_group = f"paper_{'ablation' if variant else 'main'}_bars_beauty"
+    assert cfg.group == cfg.logger.wandb.group == expected_group
+    assert cfg.run_display_name == cfg.task_name.replace("copmrec", "bars", 1)
+    assert re.fullmatch(re.escape(cfg.run_display_name) + r"/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", cfg.logger.wandb.name)
+    assert cfg.task_name.startswith("copmrec_v2_")
+    writer = cfg.callbacks.wandb_checkpoint_writer if stage == "train" else cfg.callbacks.wandb_artifact_writer
+    assert writer.task_name == cfg.task_name
+    assert writer.artifact_name.startswith(cfg.task_name + "-")
     assert cfg.native_view_ce is None and cfg.training_objective.native_view_computed is False
     assert not cfg.inference_history_exclusion
     assert "--dry-run" not in r.stdout.splitlines()
@@ -77,6 +88,17 @@ def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash,
         assert writer.metadata.alpha_policy == policy
         assert writer.metadata.fixed_mixture_alpha == fixed_alpha
         assert writer.metadata.ablation_variant == variant
+        sharing = {"no_residual": "frozen_zero_both", "untied_residual": "untied_history_catalog"}.get(
+            variant, "shared_history_catalog"
+        )
+        assert cfg.residual_sharing == writer.metadata.residual_sharing == sharing
+        assert (
+            cfg.residual_table_count
+            == writer.metadata.residual_table_count
+            == (2 if variant == "untied_residual" else 1)
+        )
+        comparison = "copmrec-v2-untied-residual-20261018-v1" if variant == "untied_residual" else None
+        assert cfg.residual_comparison_protocol == writer.metadata.residual_comparison_protocol == comparison
         # 基础兼容参数不是训练后 gate 的取值；有效策略另行记录。
         assert cfg.model.root.content_mixture_alpha == 0.5
         if stage == "inference":
@@ -87,7 +109,9 @@ def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash,
             assert writer.metadata.deployment_contract.fixed_mixture_alpha == fixed_alpha
 
 
-@pytest.mark.parametrize("variant", [None, "no_mixture", "no_residual", "no_joint_ce", "fixed_alpha_one"])
+@pytest.mark.parametrize(
+    "variant", [None, "no_mixture", "no_residual", "no_joint_ce", "fixed_alpha_one", "untied_residual"]
+)
 @pytest.mark.parametrize(
     "mode_args", [["--deployment=dense"], ["--deployment", "dense"], ["model.root.prediction_mode=dense"]]
 )
@@ -130,9 +154,10 @@ def test_deployment_option_preserves_late_override_priority(bash):
 
 
 @pytest.mark.parametrize("stage", ["train", "inference"])
-def test_fixed_alpha_script_explicit_dry_run_and_late_hydra_override(bash, stage):
+@pytest.mark.parametrize("variant", ["fixed_alpha_one", "untied_residual"])
+def test_supplement_script_explicit_dry_run_and_late_hydra_override(bash, stage, variant):
     args = [
-        "--variant=fixed_alpha_one",
+        f"--variant={variant}",
         "--devices",
         "[0,1]" if stage == "train" else "[0]",
         "--dry-run",
@@ -141,7 +166,7 @@ def test_fixed_alpha_script_explicit_dry_run_and_late_hydra_override(bash, stage
         "+trainer.root.limit_val_batches=2",
     ]
     if stage == "inference":
-        args += ["--checkpoint", "fixed_alpha_one own.ckpt", "--checkpoint-sha256=" + "8" * 64]
+        args += ["--checkpoint", f"{variant} own.ckpt", "--checkpoint-sha256=" + "8" * 64]
     r = launch(bash, f"copmrec_ablation_{stage}.sh", args)
     assert r.returncode == 0, r.stderr
     cfg = compose_argv(r.stdout.splitlines())
@@ -149,14 +174,15 @@ def test_fixed_alpha_script_explicit_dry_run_and_late_hydra_override(bash, stage
     assert "--dry-run" in r.stdout.splitlines()
     assert cfg.logger.wandb.notes == "override wins"
     assert cfg.trainer.root.limit_val_batches == 2
-    assert cfg.ablation_variant == "fixed_alpha_one"
+    assert cfg.ablation_variant == variant
     assert (
         cfg.training_objective.sid_ce
         == cfg.training_objective.joint_catalog_ce
         == cfg.training_objective.mixture_nll
         == 1.0
     )
-    assert cfg.alpha_policy == "frozen_1" and cfg.fixed_mixture_alpha == 1.0
+    assert cfg.alpha_policy == ("frozen_1" if variant == "fixed_alpha_one" else "learned")
+    assert cfg.fixed_mixture_alpha == (1.0 if variant == "fixed_alpha_one" else None)
 
 
 @pytest.mark.parametrize(
@@ -182,6 +208,10 @@ def test_diagnosis_uses_single_card_Trainer_test_and_v2(bash, analysis, variant)
     OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     assert cfg.run_mode == "analysis" and cfg.method_version == "v2"
     assert cfg.model.root.exclude_history is False and cfg.logger.wandb.notes == "override wins"
+    assert cfg.group == cfg.logger.wandb.group == "paper_mechanism_bars_beauty"
+    assert cfg.run_display_name == cfg.task_name.replace("copmrec", "bars", 1)
+    assert cfg.logger.wandb.name.startswith(cfg.run_display_name + "/")
+    assert cfg.callbacks.structured_analysis.artifact_name == cfg.task_name + "-analysis"
     assert "--dry-run" in r.stdout and "--nproc_per_node=2" not in r.stdout
     assert cfg.diagnosis_backbone.root.prediction_mode == "dense"
     if analysis == "hits":
@@ -201,10 +231,39 @@ def test_legacy_dense_hits_can_be_requested_explicitly(bash):
 
 
 @pytest.mark.parametrize(
+    "script,args",
+    [
+        ("copmrec_train.sh", ["--devices", "[0,1]"]),
+        ("copmrec_inference.sh", ["--devices", "[0]", "--checkpoint", "own.ckpt", "--checkpoint-sha256", "8" * 64]),
+        ("copmrec_ablation_train.sh", ["--devices", "[0,1]", "--variant", "untied_residual"]),
+        ("copmrec_ablation_inference.sh", ["--devices", "[0]", "--variant", "untied_residual", "--checkpoint", "own.ckpt", "--checkpoint-sha256", "8" * 64]),
+        ("copmrec_diagnosis.sh", ["--devices", "[0]", "--analysis", "hits"]),
+    ],
+)
+@pytest.mark.parametrize("equals", [False, True])
+def test_bars_display_metadata_preserves_explicit_custom_values_and_late_overrides(bash, script, args, equals):
+    group = "custom group with spaces"
+    group_args = ["--group=" + group] if equals else ["--group", group]
+    result = launch(bash, script, [*args, *group_args, 'logger.wandb.name="custom run display"'])
+    assert result.returncode == 0, result.stderr
+    cfg = compose_argv(result.stdout.splitlines())
+    assert cfg.group == cfg.logger.wandb.group == group
+    assert cfg.logger.wandb.name == "custom run display"
+    assert cfg.task_name.startswith("copmrec_v2_")
+    result = launch(bash, script, [*args, *group_args, 'logger.wandb.name="earlier display"', 'group="later group"', 'logger.wandb.name="later display"'])
+    assert result.returncode == 0, result.stderr
+    cfg = compose_argv(result.stdout.splitlines())
+    assert cfg.group == cfg.logger.wandb.group == "later group"
+    assert cfg.logger.wandb.name == "later display"
+
+
+@pytest.mark.parametrize(
     "script,args,prefix",
     [
         ("copmrec_train.sh", ["--devices", "[0,1]", "--checkpoint", "old.ckpt"], ""),
         ("copmrec_train.sh", ["--devices", "[0,1]", "--notes", ""], ""),
+        ("copmrec_train.sh", ["--devices", "[0,1]", "--group", ""], ""),
+        ("copmrec_train.sh", ["--devices", "[0,1]", "--group="], ""),
         ("copmrec_train.sh", ["--devices", "[0,1]"], "export NPROC_PER_NODE=1; "),
         ("copmrec_inference.sh", ["--devices", "[0]", "--checkpoint", "own.ckpt"], ""),
         ("copmrec_inference.sh", ["--devices", "[0]", "--checkpoint-sha256=bad"], ""),
@@ -224,6 +283,11 @@ def test_legacy_dense_hits_can_be_requested_explicitly(bash):
         ("copmrec_ablation_train.sh", ["--variant=fixed_alpha_one", ""], ""),
         ("copmrec_ablation_inference.sh", ["--variant=fixed_alpha_one", "--checkpoint-sha256="], ""),
         ("copmrec_ablation_inference.sh", ["--variant=fixed_alpha_one", "--checkpoint-sha256=bad"], ""),
+        ("copmrec_ablation_train.sh", ["--variant=untied_residual", "--notes="], ""),
+        ("copmrec_ablation_train.sh", ["--variant", "untied_residual", "--notes", ""], ""),
+        ("copmrec_ablation_train.sh", ["--variant=untied_residual", ""], ""),
+        ("copmrec_ablation_inference.sh", ["--variant=untied_residual", "--checkpoint-sha256="], ""),
+        ("copmrec_ablation_inference.sh", ["--variant=untied_residual", "--checkpoint-sha256=bad"], ""),
     ],
 )
 def test_reject_invalid_inputs_before_uv(bash, script, args, prefix):

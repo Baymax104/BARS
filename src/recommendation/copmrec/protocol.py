@@ -98,8 +98,9 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
         return {**losses, "generated_ids": sids, "labels": label.target_ids, "marginal_probs": scores}
 
     def _optimizer_parameters(self):
-        residual = self.collaborative_residual.weight
-        return [[p for p in self.parameters() if p is not residual and p.requires_grad], [residual]]
+        residuals = self._residual_parameters()
+        residual_ids = {id(parameter) for parameter in residuals}
+        return [[p for p in self.parameters() if id(p) not in residual_ids and p.requires_grad], residuals]
 
     def _optimizer_peak_lrs(self):
         return [self.base_lr, self.residual_lr]
@@ -234,7 +235,8 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
             optimizer.param_groups, optimizer.state, scheduler.state_dict(), step, saved=False
         )
         if self.restored_step is None and (
-            torch.count_nonzero(self.collaborative_residual.weight) or torch.count_nonzero(self.dynamic_gate.bias)
+            any(torch.count_nonzero(parameter) for parameter in self._residual_parameters())
+            or torch.count_nonzero(self.dynamic_gate.bias)
         ):
             raise ValueError("Unified scratch fresh fit requires the prescribed zero residual and gate initialization.")
         self._training_state_checked = True
@@ -283,10 +285,9 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
                 or not torch.isfinite(value).all()
                 for name, value in state.items()
             )
-            or torch.count_nonzero(
-                state["collaborative_residual.weight"][
-                    ~self.seen_mask.to(state["collaborative_residual.weight"].device)
-                ]
+            or any(
+                torch.count_nonzero(state[name][~self.seen_mask.to(state[name].device)])
+                for name in self.residual_parameter_names
             )
         ):
             raise ValueError("Unified scratch checkpoint model state/cold residual contract mismatch.")

@@ -33,7 +33,7 @@ def test_loss_is_exactly_the_declared_active_terms_and_disabled_parameters_stay_
     actual = copmrec(variant)
     values = actual.losses(batch()[0], batch()[1].target_ids, training=True)
     terms = ["sid_loss"]
-    if variant != "no_joint_ce":
+    if variant not in {"no_joint_ce", "untied_no_joint_ce"}:
         terms.append("content_loss")
     if variant != "no_mixture":
         terms.append("mixture_loss")

@@ -1,0 +1,28 @@
+# @package _global_
+defaults:
+- bars_untied_analysis_common@_here_
+- _self_
+root:
+  _target_: src.recommendation.copmrec.contributions.CoPMRecContributionDiagnosis
+  prediction_bundles:
+    _target_: src.data.components.artifacts.load_audited_prediction_bundles
+    paths: ${prediction_paths}
+    sha256s: ${prediction_sha256s}
+    expected_deployment_contract: ${model.expected_deployment_contract}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  semantic_ids:
+    _target_: src.data.components.artifacts.load_semantic_id_tensor
+    file_path: ${semantic_id_path}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  input_references:
+    semantic_id: ${semantic_id_path}
+    predictions: ${prediction_paths}
+    prediction_sha256s: ${prediction_sha256s}
+    data_dir: ${paths.data_dir}
+    dataset: ${dataset_name}
+    training_seed: ${seed}
+  bootstrap_repetitions: 2000
+  reference: untied
+  num_hierarchies: ${num_hierarchies}

@@ -5,14 +5,16 @@ defaults:
 - override /data@data: copmrec_diagnosis
 - override /model@model: copmrec_diagnosis
 - override /callbacks@callbacks: copmrec_diagnosis
+- override /logger@logger: bars_inference
 - _self_
 run_mode: analysis
 diagnosis_analysis: ???
 diagnosis_variant: full
 m3_protocol: copmrec-v2-ablation-20261009-v1
 evidence_phase: mechanism
-group: paper_mechanism_copmrec_${dataset_name}
+group: paper_mechanism_bars_${dataset_name}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_${diagnosis_analysis}_${diagnosis_variant}_diagnosis
+run_display_name: bars_v2_${dataset_name}_seed${seed}_${diagnosis_analysis}_${diagnosis_variant}_diagnosis
 ckpt_path: null
 checkpoint_reference: ${ckpt_path}
 checkpoint_sha256: null

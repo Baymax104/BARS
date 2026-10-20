@@ -4,12 +4,16 @@ defaults:
 - override /model@model: copmrec_ablation
 - _self_
 ablation_variant: ???
-group: paper_ablation_copmrec_${dataset_name}
+group: paper_ablation_bars_${dataset_name}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_${ablation_variant}_train
+run_display_name: bars_v2_${dataset_name}_seed${seed}_${ablation_variant}_train
 evidence_phase: ablation
 m3_protocol: copmrec-v2-ablation-20261009-v1
 alpha_policy: ${model.ablation_alpha.${ablation_variant}.policy}
 fixed_mixture_alpha: ${model.ablation_alpha.${ablation_variant}.fixed_mixture_alpha}
+residual_sharing: ${model.ablation_residual.${ablation_variant}.sharing}
+residual_table_count: ${model.ablation_residual.${ablation_variant}.table_count}
+residual_comparison_protocol: ${model.ablation_residual.${ablation_variant}.comparison_protocol}
 formal_release:
   evidence_phase: ablation
   variant: ${ablation_variant}
@@ -29,6 +33,9 @@ callbacks:
       ablation_variant: ${ablation_variant}
       alpha_policy: ${alpha_policy}
       fixed_mixture_alpha: ${fixed_mixture_alpha}
+      residual_sharing: ${residual_sharing}
+      residual_table_count: ${residual_table_count}
+      residual_comparison_protocol: ${residual_comparison_protocol}
 training_objective:
   sid_ce: 1.0
   joint_catalog_ce: ${model.ablation_weights.${ablation_variant}.joint_catalog_ce}

@@ -92,6 +92,53 @@ def load_audited_checkpoint(reference: str, sha256: str, wandb_entity=None, wand
     return checkpoint
 
 
+def load_audited_prediction_output(file_path, sha256, expected_deployment_contract=None, **kwargs):
+    """校验预测字节及实际Artifact部署身份，保留来源供机制分析复核。"""
+    if not isinstance(sha256, str) or re.fullmatch(r"[0-9a-f]{64}", sha256) is None:
+        raise ValueError("Prediction requires an audited lowercase SHA256.")
+    registry = get_resolved_artifact_registry()
+    first_record = len(registry.records())
+    output = load_model_output(file_path, expected_sha256=sha256, **kwargs)
+    field_name = kwargs.get("field_name", "model_output_path")
+    records = [
+        record
+        for record in registry.records()[first_record:]
+        if record.field_name == field_name and record.original_uri == file_path
+    ]
+    metadata = records[-1].metadata if records else {}
+    contract = metadata.get("deployment_contract")
+    if expected_deployment_contract is not None:
+        if not isinstance(contract, dict) or any(
+            key not in contract or type(contract[key]) is not type(value) or contract[key] != value
+            for key, value in expected_deployment_contract.items()
+        ):
+            raise ValueError(f"{field_name} requires verified prediction deployment Artifact metadata.")
+    output.auxiliary.update(
+        source_reference=file_path,
+        source_sha256=sha256,
+        source_metadata=dict(metadata),
+    )
+    if isinstance(contract, dict):
+        output.auxiliary["deployment_contract"] = dict(contract)
+    return output
+
+
+def load_audited_prediction_bundles(paths, sha256s, expected_deployment_contract=None, **kwargs):
+    """逐条件读取明确URI与SHA的预测，不将显示名当作原模型身份。"""
+    if not paths or set(paths) != set(sha256s):
+        raise ValueError("Prediction paths and audited SHA256 names must match.")
+    return {
+        name: load_audited_prediction_output(
+            reference,
+            sha256s[name],
+            expected_deployment_contract=expected_deployment_contract,
+            field_name=f"prediction_paths.{name}",
+            **kwargs,
+        )
+        for name, reference in paths.items()
+    }
+
+
 DEFAULT_ROLE_BY_FIELD = {
     "quantizer_checkpoint_path": "checkpoint",
     "ckpt_path": "checkpoint",
@@ -206,6 +253,7 @@ def load_model_output(
     wandb_entity: str | None = None,
     wandb_project: str | None = None,
     wandb_cache_dir: str | None = None,
+    expected_sha256: str | None = None,
 ) -> ModelOutput:
     """Load a model output from disk, sorted by key for binary search lookup."""
     resolved_path = resolve_reference(
@@ -216,7 +264,16 @@ def load_model_output(
         cache_dir=wandb_cache_dir,
         default_file=DEFAULT_BUNDLE_FILE,
     )
-    bundle: dict[str, torch.Tensor] = torch.load(open_local_or_remote(resolved_path, mode="rb"), weights_only=False)
+    if expected_sha256 is not None:
+        if not isinstance(expected_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
+            raise ValueError("Prediction requires an audited lowercase SHA256.")
+        with open_local_or_remote(resolved_path, mode="rb") as stream:
+            raw = stream.read()
+        if hashlib.sha256(raw).hexdigest() != expected_sha256:
+            raise ValueError("Prediction SHA256 mismatch.")
+        bundle = torch.load(io.BytesIO(raw), weights_only=False)
+    else:
+        bundle = torch.load(open_local_or_remote(resolved_path, mode="rb"), weights_only=False)
     if not isinstance(bundle, dict):
         raise TypeError(f"Expected model output dict at {resolved_path}, got {type(bundle).__name__}.")
 

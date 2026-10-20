@@ -6,7 +6,8 @@ from src.recommendation.copmrec.module import CoPMRec
 
 M3_PROTOCOL = "copmrec-v2-ablation-20261009-v1"
 VARIANTS = ("no_mixture", "no_residual", "no_joint_ce")
-TRAINING_VARIANTS = (*VARIANTS, "fixed_alpha_one")
+TRAINING_VARIANTS = (*VARIANTS, "fixed_alpha_one", "untied_residual", "untied_no_joint_ce")
+UNTIED_VARIANTS = ("untied_residual", "untied_no_joint_ce")
 
 
 class CoPMRecAblation(CoPMRec):
@@ -19,6 +20,33 @@ class CoPMRecAblation(CoPMRec):
             self.dynamic_gate.bias.requires_grad_(False)
         if variant == "no_residual":
             self.collaborative_residual.weight.requires_grad_(False)
+        if variant in UNTIED_VARIANTS:
+            self.history_collaborative_residual = torch.nn.Embedding.from_pretrained(
+                torch.zeros_like(self.collaborative_residual.weight), freeze=False
+            )
+
+    @property
+    def residual_parameter_names(self):
+        names = super().residual_parameter_names
+        return (*names, "history_collaborative_residual.weight") if self.variant in UNTIED_VARIANTS else names
+
+    @property
+    def residual_contract(self):
+        contract = super().residual_contract
+        if self.variant in UNTIED_VARIANTS:
+            contract = {
+                **contract,
+                "protocol": "copmrec-untied-collaborative-residual-v1",
+                "sharing": "independent_history_and_catalog_after_content_projection",
+            }
+        return contract
+
+    def item_history_residual(self, rows):
+        if self.variant not in UNTIED_VARIANTS:
+            return super().item_history_residual(rows)
+        return (
+            self.history_collaborative_residual(rows).masked_fill(~self.seen_mask[rows, None], 0) * self.residual_scale
+        )
 
     @property
     def mixture_alpha_policy(self):
@@ -47,11 +75,15 @@ class CoPMRecAblation(CoPMRec):
             variant=self.variant,
             loss_weights=dict(
                 sid_ce=1,
-                joint_catalog_ce=int(self.variant != "no_joint_ce"),
+                joint_catalog_ce=int(self.variant not in {"no_joint_ce", "untied_no_joint_ce"}),
                 mixture_nll=int(self.variant != "no_mixture"),
             ),
             alpha_policy="frozen_0.5" if self.variant == "no_mixture" else self.mixture_alpha_policy,
-            residual_mode="frozen_zero_both" if self.variant == "no_residual" else "shared_history_catalog",
+            residual_mode=(
+                "untied_history_catalog"
+                if self.variant in UNTIED_VARIANTS
+                else {"no_residual": "frozen_zero_both"}.get(self.variant, "shared_history_catalog")
+            ),
         )
 
     @property
@@ -102,7 +134,7 @@ class CoPMRecAblation(CoPMRec):
     def _joint_losses(self, *args, **kwargs):
         values = super()._joint_losses(*args, **kwargs)
         total = values["sid_loss"]
-        if self.variant != "no_joint_ce":
+        if self.variant not in {"no_joint_ce", "untied_no_joint_ce"}:
             total = total + values["content_loss"]
         if self.variant != "no_mixture":
             total = total + values["mixture_loss"]

@@ -3,10 +3,12 @@ defaults:
 - liger_train
 - override /model@model: copmrec
 - override /trainer@trainer: copmrec_train
+- override /logger@logger: bars_train
 - _self_
 copmrec_version: v2
-group: paper_main_copmrec_${dataset_name}
+group: paper_main_bars_${dataset_name}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_train
+run_display_name: bars_v2_${dataset_name}_seed${seed}_train
 baseline_protocol: copmrec-unified-scratch-50k-v1
 ckpt_path: null
 unified_scratch_contract: null

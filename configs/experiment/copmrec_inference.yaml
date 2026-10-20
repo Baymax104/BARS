@@ -3,10 +3,12 @@ defaults:
 - liger_inference
 - /deployment@_global_: copmrec
 - override /model@model: copmrec
+- override /logger@logger: bars_inference
 - _self_
 copmrec_version: v2
-group: paper_main_copmrec_${dataset_name}
+group: paper_main_bars_${dataset_name}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_${model.root.prediction_mode}_inference
+run_display_name: bars_v2_${dataset_name}_seed${seed}_${model.root.prediction_mode}_inference
 baseline_protocol: copmrec-unified-scratch-50k-v1
 checkpoint_sha256: ???
 checkpoint_reference: ${ckpt_path}

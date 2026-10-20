@@ -1,0 +1,36 @@
+# @package _global_
+defaults:
+- bars_untied_analysis_common@_here_
+- _self_
+root:
+  _target_: src.recommendation.copmrec.mechanism.CoPMRecMechanismDiagnosis
+  backbone: ${diagnosis_backbone.root}
+  checkpoint:
+    _target_: src.data.components.artifacts.load_audited_checkpoint
+    reference: ${checkpoint_reference}
+    sha256: ${checkpoint_sha256}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  reference_predictions:
+    _target_: src.data.components.artifacts.load_audited_prediction_output
+    file_path: ${prediction_paths.untied}
+    sha256: ${prediction_sha256s.untied}
+    expected_deployment_contract: ${model.expected_deployment_contract}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  source_reference: ${checkpoint_reference}
+  source_sha256: ${checkpoint_sha256}
+  prediction_reference: ${prediction_paths.untied}
+  input_references:
+    semantic_id: ${semantic_id_path}
+    content: ${embedding_path}
+    predictions: ${prediction_paths.untied}
+    prediction_sha256: ${prediction_sha256s.untied}
+    data_dir: ${paths.data_dir}
+    dataset: ${dataset_name}
+    training_seed: ${seed}
+  bootstrap_repetitions: 2000
+  generation_candidates: 20
+  top_k: 10
+  candidate_score_batch_size: 64
+  num_hierarchies: ${num_hierarchies}

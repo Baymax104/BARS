@@ -1,0 +1,34 @@
+# @package _global_
+defaults:
+- liger_inference
+- override /data@data: copmrec_diagnosis
+- override /model@model: bars_untied_contributions
+- override /callbacks@callbacks: bars_untied_mechanism
+- _self_
+run_mode: analysis
+analysis_kind: contributions
+evidence_phase: mechanism
+m3_protocol: bars-untied-mechanism-beauty42-20261019-v1
+group: paper_mechanism_bars_untied_${dataset_name}
+task_name: bars_untied_${dataset_name}_seed${seed}_${analysis_kind}
+ckpt_path: null
+checkpoint_reference: ${ckpt_path}
+checkpoint_sha256: null
+prediction_paths:
+  untied: wandb://baymaxam/GRID/e4a3b038?role=recommendation_output&alias=v0&file=merged_predictions_tensor.pt
+  shared: wandb://baymaxam/GRID/64mjlgze?role=recommendation_output&alias=v0&file=merged_predictions_tensor.pt
+  no_residual: wandb://baymaxam/GRID/xzfp1pgt?role=recommendation_output&alias=v0&file=merged_predictions_tensor.pt
+prediction_sha256s:
+  untied: f15c09e0464de7f33eeb9eeabe00f55758f51028d088c923f48b4257ece0ca93
+  shared: d6b597ac2a97085be571c118a501a0a1d7600e442d3d01c0f29e53ea38efe908
+  no_residual: d694e068e1791e7951592b3a42ba240cbc69efecb0bebadff2e2a31665114fe8
+trainer:
+  root:
+    accelerator: cpu
+    devices: 1
+source_snapshot:
+  enabled: true
+logger:
+  wandb:
+    notes: Beauty42冻结预测配对与命中贡献；保留旧no_residual身份；0模型forward；用户区间不代表训练seed不确定性。
+    tags: [bars, untied, mechanism, contributions, beauty42]

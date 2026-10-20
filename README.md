@@ -18,6 +18,8 @@ uv sync --locked
 
 所有命令均从仓库根目录执行。使用 W&B logger 前需配置相应账号与凭据；项目、分组和实验说明通过 `logger.wandb.project`、`logger.wandb.group`、`logger.wandb.notes` 设置。
 
+BARS 的 W&B 显示名与 group 使用 `bars`：默认组为 `paper_main_bars_<dataset>`（Shared Full）、`paper_ablation_bars_<dataset>`（含 Untied 的各 variant）和 `paper_mechanism_bars_<dataset>`（原诊断入口）。显示名沿用原任务模板并将方法前缀替换为 `bars`；`task_name`、`copmrec` 入口、协议及 Artifact 身份保留。显式 `--group`、`logger.wandb.group` 或 `logger.wandb.name` 可以覆盖默认显示值，当前 Linear 参考命令同步使用新命名；既有 run 的执行 config 和历史 argv 保留原记录。规则与边界见[BARS 运行入口](docs/copmrec-versions.md)，逐 run 映射见[命名统一回执](docs/evidence/bars-naming-unification-20261020/README.md)。
+
 ## 目录与配置
 
 | 路径 | 职责 |
@@ -46,8 +48,9 @@ Experiment 保持薄入口职责，最终行为由其 `defaults` 组合出的组
 | LETTER 前置链路 | `letter_cf_train` → `letter_cf_export` → `letter_tokenizer_train` → `letter_sid` |
 | 诊断分析 | `tail_sid_diagnosis`、`tiger_prefix_trace`、`tiger_prefix_allocation_probe`、`copmrec_diagnosis` |
 | CoPMRec 消融 | `copmrec_ablation_train`、`copmrec_ablation_inference` |
+| BARS Untied机制与贡献 | `bars_untied_contributions`、`bars_untied_mechanism`；共用 `bars_untied_mechanism.sh`，通过 `--analysis contributions` 或 `--analysis generation` 选择 |
 
-表中每个名称对应 `configs/experiment/<名称>.yaml` 与根目录 `<名称>.sh`；推荐训练和推理名称分别展开为 `_train` 与 `_inference`。LETTER 的前置链路具有独立输入契约，详见 [LETTER 实现](docs/letter.md)。
+表中每个名称对应 `configs/experiment/<名称>.yaml`；BARS机制两项共用上述脚本，其他名称对应根目录 `<名称>.sh`，推荐训练和推理名称分别展开为 `_train` 与 `_inference`。LETTER 的前置链路具有独立输入契约，详见 [LETTER 实现](docs/letter.md)。
 
 统一入口通过 `experiment=<名称>` 选择实验。先查看组合配置，无需加载真实数据或启动训练：
 
@@ -59,14 +62,19 @@ uv run -m src.main experiment=copmrec_train --cfg job
 
 训练与 diagnosis 脚本支持 `--dry-run`，并将其交给统一入口执行最小流程；它仍需有效数据和上游产物。查看配置使用 `--cfg job`。脚本支持 `--notes="..."` 和 `--notes "..."`，末尾追加的 Hydra override 可以覆盖默认值。不同方法的参数名称可能不同，请对照对应脚本。
 
-## CoPMRec v2 运行示例
+## BARS（CoPMRec v2）运行示例
 
-当前正式 CoPMRec v2 使用共享历史表示、商品 residual 与可学习的概率混合，联合优化 SID CE、完整目录 joint CE 和 mixture NLL；训练、验证、推理均关闭历史商品排除。正式训练默认从头初始化，双 GPU、FP32、50,000 个 optimizer update，每 500 步验证；训练结束后不自动执行 Testing。
+2026-10-19 按用户决定，**BARS Untied 为当前主方法，BARS Shared 保留为共享残差对照**。Untied为历史侧和目录侧分别学习商品 residual，内容投影仍共享；联合优化 SID CE、完整目录 joint CE 和 mixture NLL，使用可学习的概率混合。训练、验证、推理均关闭历史商品排除。训练从头初始化，双 GPU、FP32、50,000 个 optimizer update，每500步dense Validation按各自 `val/ndcg@10` 选择own-best；训练结束后不自动执行 Testing。
+
+当前代码保留原入口和checkpoint身份：Untied通过 `copmrec_ablation_train/inference.sh --variant untied_residual` 运行；裸 `copmrec_train/inference.sh` 仍运行Shared。Untied三数据集×三seed主矩阵已完成9/9并独立验收，见[最终矩阵回执](docs/evidence/bars-untied-m2-final-20261019/README.md)；Shared九格保留独立对照身份。
+
+[Beauty42机制链路与贡献实验](docs/bars-untied-mechanism-results-20261019.md)三组均已完成并独立验收。双表去直接目录CE使用 `--variant untied_no_joint_ce`；固定预测贡献与生成／排序2×2使用机制脚本，重训移除与固定checkpoint干预分别解释。
 
 以下 Bash 示例中的路径仅展示参数形式，需替换为实际数据、对齐后的 SID 和商品语义向量。运行脚本前先安装锁定环境；脚本默认设置 `UV_NO_SYNC=1`。
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_train.sh \
+CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
+  --variant untied_residual \
   --data-dir data/beauty \
   --dataset beauty \
   --semantic-id-path logs/inputs/beauty/semantic_ids.pt \
@@ -74,7 +82,7 @@ CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_train.sh \
   --devices '[0,1]' \
   --seed 42 \
   --master-port 29730 \
-  --notes "CoPMRec v2; Beauty; seed=42"
+  --notes "BARS Untied; Beauty; seed=42"
 ```
 
 `CUDA_VISIBLE_DEVICES=0,1` 选择物理 GPU，`--devices '[0,1]'` 使用其映射后的逻辑编号。正式训练脚本要求两个进程，并拒绝通过 checkpoint 恢复训练。
@@ -82,7 +90,9 @@ CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_train.sh \
 独立推理固定该方法、数据集和 seed 对应的自身最佳 checkpoint，要求单进程及明确的 SHA256。先将 `CHECKPOINT_PATH` 和 `CHECKPOINT_SHA256` 设置为经过核验的路径与 64 位小写十六进制哈希，再执行：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_inference.sh \
+CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_ablation_inference.sh \
+  --variant untied_residual \
+  --deployment hybrid \
   --data-dir data/beauty \
   --dataset beauty \
   --semantic-id-path logs/inputs/beauty/semantic_ids.pt \
@@ -92,10 +102,10 @@ CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_inference.sh \
   --checkpoint "$CHECKPOINT_PATH" \
   --checkpoint-sha256 "$CHECKPOINT_SHA256" \
   --split testing \
-  --notes "CoPMRec v2; own-best; Testing"
+  --notes "BARS Untied; own-best; hybrid Testing"
 ```
 
-`--split validation` 对应 `evaluation` 数据目录，`--split testing` 对应 `testing`。当前消融仅包含 `no_mixture`、`no_residual` 和 `no_joint_ce`；机制诊断包含 `hits`、`residual` 和 `prefix`。具体输入、版本边界与协议见 [CoPMRec 正式版本](docs/copmrec-versions.md)。
+`--split validation` 对应 `evaluation` 数据目录，`--split testing` 对应 `testing`。Shared对照使用 `copmrec_train.sh` / `copmrec_inference.sh`，省略 `--variant`，并指定其自身checkpoint。现有 `no_mixture`、`no_residual`、`no_joint_ce`、`fixed_alpha_one` 对照和 `hits`、`residual`、`prefix` 诊断保留Shared来源；Untied去直接目录CE为已完成的Beauty42机制单元。具体输入、结果范围和后续计划见 [BARS 方法与运行入口](docs/copmrec-versions.md)。
 
 ## 数据、产物与来源追溯
 

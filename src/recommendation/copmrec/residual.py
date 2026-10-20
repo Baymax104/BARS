@@ -67,6 +67,13 @@ class SharedCatalogResidual(JointMixtureCoPMRec):
         return self.collaborative_residual(rows).masked_fill(~self.seen_mask[rows, None], 0) * self.residual_scale
 
     @property
+    def residual_parameter_names(self):
+        return ("collaborative_residual.weight",)
+
+    def _residual_parameters(self):
+        return [self.get_parameter(name) for name in self.residual_parameter_names]
+
+    @property
     def residual_contract(self):
         return dict(
             protocol="copmrec-shared-collaborative-residual-v1",
@@ -80,13 +87,15 @@ class SharedCatalogResidual(JointMixtureCoPMRec):
     def configure_optimizers(self):
         if self.training_config.optimizer is None:
             raise ValueError("Optimizer is required for training.")
-        residual_parameter = self.collaborative_residual.weight
-        parameters = [p for p in self.parameters() if p is not residual_parameter and p.requires_grad]
+        residual_parameters = self._residual_parameters()
+        residual_ids = {id(parameter) for parameter in residual_parameters}
+        parameters = [p for p in self.parameters() if id(p) not in residual_ids and p.requires_grad]
         optimizer = self.training_config.optimizer(params=parameters)
-        if residual_parameter.requires_grad:
+        trainable_residuals = [parameter for parameter in residual_parameters if parameter.requires_grad]
+        if trainable_residuals:
             optimizer.add_param_group(
                 {
-                    "params": [residual_parameter],
+                    "params": trainable_residuals,
                     "lr": optimizer.defaults["lr"] * self.residual_lr_multiplier,
                 }
             )

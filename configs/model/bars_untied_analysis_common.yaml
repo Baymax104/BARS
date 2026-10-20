@@ -1,0 +1,15 @@
+# @package _global_
+expected_deployment_contract:
+  protocol: copmrec-hybrid-deployment-v1
+  mode: hybrid
+  generation_candidates: 20
+  candidate_strategy: probability_mixture
+  candidate_pool: beam_plus_all_cold
+  final_score: joint_catalog_logits
+  rank_ties: stable_catalog_row
+  history_exclusion: false
+  alpha_policy: learned
+  alpha_source: checkpoint
+  fixed_mixture_alpha: null
+training_model_config: null
+metrics: null

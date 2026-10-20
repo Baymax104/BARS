@@ -18,6 +18,12 @@ ablation_weights:
   fixed_alpha_one:
     joint_catalog_ce: 1.0
     mixture_nll: 1.0
+  untied_residual:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+  untied_no_joint_ce:
+    joint_catalog_ce: 0.0
+    mixture_nll: 1.0
 # content_mixture_alpha 是基础兼容参数；这里登记变体实际使用的 gate 策略。
 ablation_alpha:
   no_mixture:
@@ -36,3 +42,37 @@ ablation_alpha:
     policy: frozen_1
     source: fixed
     fixed_mixture_alpha: 1.0
+  untied_residual:
+    policy: learned
+    source: checkpoint
+    fixed_mixture_alpha: null
+  untied_no_joint_ce:
+    policy: learned
+    source: checkpoint
+    fixed_mixture_alpha: null
+# 表数为实际存储的商品残差表数；no_residual 保留一张冻结零表。
+ablation_residual:
+  no_mixture:
+    sharing: shared_history_catalog
+    table_count: 1
+    comparison_protocol: null
+  no_residual:
+    sharing: frozen_zero_both
+    table_count: 1
+    comparison_protocol: null
+  no_joint_ce:
+    sharing: shared_history_catalog
+    table_count: 1
+    comparison_protocol: null
+  fixed_alpha_one:
+    sharing: shared_history_catalog
+    table_count: 1
+    comparison_protocol: null
+  untied_residual:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: copmrec-v2-untied-residual-20261018-v1
+  untied_no_joint_ce:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: bars-untied-mechanism-beauty42-20261019-v1
