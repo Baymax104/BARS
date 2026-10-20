@@ -74,7 +74,7 @@ bash letter_inference.sh --dataset "$DATASET" --seed "$SEED" \
 
 默认推荐两卡；可显式指定 `--gpus 4,5 --nproc-per-node 2 --master-port 29521`。默认 tokenizer 一卡，拒绝多个进程。推荐验证使用 evaluation，推理使用 testing，不在训练后自动消费test。
 
-正式矩阵为 Beauty/Sports/Toys × seed42/200/2026 共9次；每次绑定自己的CF、tokenizer checkpoint、四码SID、推荐best checkpoint和Testing输出。Beauty42对应 [BMX-60](https://linear.app/baymax104/issue/BMX-60/基线letter-beauty-seed42)，整体结果归 [BMX-130](https://linear.app/baymax104/issue/BMX-130/完成-letter-基线主表)。本次完成可运行准备与九槽位命令，尚未启动正式矩阵。未来产物由对应正式阶段产生，Testing等待真实validation best；不能以初始化探针SID或有限训练CF作为正式上游。
+正式矩阵为 Beauty/Sports/Toys × seed42/200/2026 共9次；每次绑定自己的CF、tokenizer checkpoint、四码SID、推荐best checkpoint和Testing输出。Beauty42对应 [BMX-60](https://linear.app/baymax104/issue/BMX-60/基线letter-beauty-seed42)，整体结果归 [BMX-130](https://linear.app/baymax104/issue/BMX-130/完成-letter-基线主表)。截至2026-10-10，九个正式单元的完整训练/Testing及独立核验均完成，主表见 [LETTER基线主表](letter-main-table-20261010.md)。初始化探针或有限训练验证产物不作为正式上游。
 
 ## 输出与验证边界
 
