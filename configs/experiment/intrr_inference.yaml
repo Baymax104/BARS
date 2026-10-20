@@ -1,0 +1,32 @@
+# @package _global_
+defaults:
+- /data@data: intrr_inference
+- /model@model: intrr
+- /callbacks@callbacks: tiger_inference
+- /logger@logger: tiger_inference
+- /trainer@trainer: tiger_inference
+
+data_dir: ???
+semantic_id_path: ???
+ckpt_path: ???
+num_hierarchies: 4
+codebook_size: 256
+sequence_length: 180
+devices: ???
+seed: 42
+
+run_mode: inference
+task_name: intrr_inference
+project: GRID
+user: baymaxam
+group: intrr
+sid_type: ???
+id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
+upstream_commit: 806e0f1969ed61a0748902649b335c0ea066de00
+baseline_protocol: intrr-shared-ran-tiger-v1
+evaluation_protocol: full-catalog-no-history-filter-v1
+
+paths:
+  root_dir: .
+  data_dir: ${data_dir}
+  output_dir: ${hydra:runtime.output_dir}

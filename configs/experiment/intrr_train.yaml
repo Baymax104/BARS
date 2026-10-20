@@ -1,0 +1,34 @@
+# @package _global_
+defaults:
+- /data@data: intrr_train
+- /model@model: intrr
+- /callbacks@callbacks: tiger_train
+- /logger@logger: tiger_train
+- /trainer@trainer: tiger_train
+
+data_dir: ???
+semantic_id_path: ???
+num_hierarchies: 4
+codebook_size: 256
+sequence_length: 180
+devices: ???
+seed: 42
+
+run_mode: train
+task_name: intrr_train
+project: GRID
+user: baymaxam
+group: intrr
+sid_type: ???
+id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
+run_test_after_training: false
+ckpt_path: null
+upstream_commit: 806e0f1969ed61a0748902649b335c0ea066de00
+baseline_protocol: intrr-shared-ran-tiger-v1
+validation_implementation: history-encoding-reuse-v1
+evaluation_protocol: full-catalog-no-history-filter-v1
+
+paths:
+  root_dir: .
+  data_dir: ${data_dir}
+  output_dir: ${hydra:runtime.output_dir}

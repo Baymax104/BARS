@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+- tiger_train@_here_
+- _self_
+
+catalog:
+  _target_: src.data.components.intrr.load_intrr_catalog
+  semantic_id_path: ${semantic_id_path}
+  num_hierarchies: ${num_hierarchies}
+  codebook_size: ${codebook_size}
+  wandb_entity: ${user}
+  wandb_project: ${project}
+
+collate:
+  _target_: src.data.components.intrr.intrr_collate
+  catalog: ${data.catalog}
+  sequence_length: ${sequence_length}
