@@ -8,6 +8,8 @@ root:
     _target_: src.data.components.artifacts.load_audited_prediction_bundles
     paths: ${prediction_paths}
     sha256s: ${prediction_sha256s}
+    minimum_conditions: 2
+    expected_source_variants: ${model.analysis_source_contracts.${analysis_source_variant}.prediction_variants}
     expected_deployment_contract: ${model.expected_deployment_contract}
     wandb_entity: ${user}
     wandb_project: ${project}
@@ -25,4 +27,5 @@ root:
     training_seed: ${seed}
   bootstrap_repetitions: 2000
   reference: untied
+  protocol: ${m3_protocol}
   num_hierarchies: ${num_hierarchies}

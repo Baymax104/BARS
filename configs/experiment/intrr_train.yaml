@@ -7,6 +7,7 @@ defaults:
 - /trainer@trainer: tiger_train
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 semantic_id_path: ???
 num_hierarchies: 4
 codebook_size: 256
@@ -16,9 +17,10 @@ seed: 42
 
 run_mode: train
 task_name: intrr_train
+run_display_name: intrr_${display_dataset_name}_seed${seed}_${sid_type}_train
 project: GRID
 user: baymaxam
-group: intrr
+group: intrr_main
 sid_type: ???
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
 run_test_after_training: false

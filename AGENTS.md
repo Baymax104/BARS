@@ -16,6 +16,12 @@
 
 ## 上下文来源规范
 
+- 当前 BARS 主方法为 `untied_fixed_alpha_half_no_mixture`：历史／目录双残差表、固定 alpha=0.5，SID CE／Catalog CE／mixture NLL 权重为 1/1/0。使用 `copmrec_ablation_train.sh`／`copmrec_ablation_inference.sh` 并明确传入该 variant；裸 `copmrec_train.sh` 仍是历史 Shared 配方。
+- 当前主方法及匹配 M3 变体使用 hybrid Validation：beam20 与全部 cold 商品并集、目录 logits 稳定 Top10、不排除历史商品；每500步按自身首次最高 `val/ndcg@10` 选点。旧变体保留 dense 契约，禁止跨选点协议恢复或混用 checkpoint。
+- 当前 M3 匹配变体为 `shared_fixed_alpha_half_no_mixture`、`no_residual_fixed_alpha_half_no_mixture`、`untied_fixed_alpha_half_no_joint_ce_no_mixture`，协议为 `bars-fixed-half-hybrid-m3-20261023-v1`。机制与贡献入口默认当前 Full；历史来源须显式指定并保留原身份。
+- W&B 默认按研究角色分组：主实验 `{method}_main`、消融 `ablation_main`、机制 `mechanism_main`；旧 learned-alpha 主变体归入 `history`。显示名不能替代实际来源核验；BARS 公共推理入口只接受 hybrid，显示阶段使用 `test`／`validation`。
+- 当前结果入口为 `docs/bars-hybrid-m2-results-20261023.md`（M2 九格）及 `docs/bars-current-method-m3-results-20261023.md`（Beauty／seed42）。实现归档不授权新增运行或预算，旧三损失机制证据不能替代当前两损失证据。
+
 - 修改前必须优先读取与任务相关的可执行配置、脚本和测试；不要只依赖 README 或历史说明判断行为。
 - 依赖判断必须以项目清单文件和实际 import 为准；遇到平台差异时先确认运行环境再调整。
 - Experiment 行为必须以 `configs/experiment/*.yaml` 及其 defaults 组合后的组件配置为准。

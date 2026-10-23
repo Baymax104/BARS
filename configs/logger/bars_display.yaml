@@ -1,0 +1,19 @@
+# @package _global_
+# 仅显示分类；变体的训练/部署契约继续使用原有配置。
+bars_ablation_display:
+  no_mixture: {group: ablation_main, name: shared_no_mixture}
+  no_residual: {group: ablation_main, name: shared_no_residual}
+  no_joint_ce: {group: ablation_main, name: shared_no_joint_ce}
+  fixed_alpha_one: {group: ablation_main, name: shared_alpha_exploration_fixed_1}
+  untied_residual: {group: history, name: untied_learned_alpha_mixture}
+  untied_no_joint_ce: {group: ablation_main, name: untied_no_joint_ce}
+  untied_fixed_alpha_one: {group: ablation_main, name: untied_alpha_exploration_fixed_1}
+  untied_fixed_alpha_half: {group: ablation_main, name: untied_alpha_exploration_fixed_0.5}
+  untied_fixed_alpha_half_no_mixture: {group: bars_main, name: untied_fixed_alpha_0.5_no_mixture}
+  untied_alpha_near_zero: {group: ablation_main, name: untied_alpha_exploration_init_0.0001_learned}
+  shared_fixed_alpha_half_no_mixture: {group: ablation_main, name: shared_fixed_alpha_0.5_no_mixture}
+  no_residual_fixed_alpha_half_no_mixture: {group: ablation_main, name: no_residual_fixed_alpha_0.5_no_mixture}
+  untied_fixed_alpha_half_no_joint_ce_no_mixture: {group: ablation_main, name: untied_fixed_alpha_0.5_no_catalog_ce_no_mixture}
+display_evaluation_stages:
+  testing: test
+  validation: validation

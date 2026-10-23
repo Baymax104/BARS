@@ -48,6 +48,7 @@ class CoPMRecContributionDiagnosis(LightningModule):
         bootstrap_repetitions=2000,
         reference="untied",
         num_hierarchies=4,
+        protocol="bars-untied-mechanism-beauty42-20261019-v1",
     ):
         super().__init__()
         if type(num_hierarchies) is not int or num_hierarchies < 1:
@@ -102,7 +103,7 @@ class CoPMRecContributionDiagnosis(LightningModule):
         if any(not torch.equal(bundle.keys, reference_keys) for bundle in self.prediction_bundles.values()):
             raise ValueError("Prediction sources must contain exactly the same user population.")
         self.metadata = dict(
-            protocol="bars-untied-mechanism-beauty42-20261019-v1",
+            protocol=protocol,
             analysis_protocol="bars-untied-contributions-20261019-v1",
             evidence_type="frozen_predictions_paired_contributions",
             reference=reference,

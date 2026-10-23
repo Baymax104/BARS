@@ -1,4 +1,4 @@
-"""固定 Untied checkpoint 的生成／排序 2×2 干预；不改变正式部署。"""
+"""固定当前 Full checkpoint 的生成／排序 2×2 干预；保留历史显式复现。"""
 
 import hashlib
 import re
@@ -16,8 +16,10 @@ from src.data.utils import gather_predictions_by_keys
 from src.recommendation.copmrec.diagnosis import retrieval_values
 from src.recommendation.liger.candidate_guidance import ProbabilityMixtureProcessor
 
-MECHANISM_PROTOCOL = "bars-untied-mechanism-beauty42-20261019-v1"
-GENERATORS = ("learned", "alpha0")
+MECHANISM_PROTOCOL = "bars-fixed-half-hybrid-m3-20261023-v1"
+LEGACY_MECHANISM_PROTOCOL = "bars-untied-mechanism-beauty42-20261019-v1"
+CURRENT_VARIANT = "untied_fixed_alpha_half_no_mixture"
+GENERATORS = ("production", "alpha0")
 RANKERS = ("catalog", "decoder")
 ARMS = tuple(f"{generation}_{ranking}" for generation in GENERATORS for ranking in RANKERS)
 METRICS = ("recall@5", "ndcg@5", "recall@10", "ndcg@10")
@@ -79,8 +81,16 @@ class CoPMRecMechanismDiagnosis(LightningModule):
         num_hierarchies=None,
     ):
         super().__init__()
-        if getattr(backbone, "variant", None) != "untied_residual":
-            raise ValueError("Mechanism diagnosis requires the current Untied Full backbone.")
+        variant = getattr(backbone, "variant", None)
+        if variant not in {CURRENT_VARIANT, "untied_residual"}:
+            raise ValueError("Mechanism diagnosis requires the current Full or explicit historical Untied backbone.")
+        legacy = variant == "untied_residual"
+        if not legacy and backbone.validation_selection_mode != "hybrid":
+            raise ValueError("Current Full mechanism requires its hybrid-selected training source.")
+        self.generators = ("learned", "alpha0") if legacy else GENERATORS
+        self.arms = tuple(f"{generation}_{ranking}" for generation in self.generators for ranking in RANKERS)
+        self.production_generation = self.generators[0]
+        self.reference_arm = f"{self.production_generation}_catalog"
         if num_hierarchies is not None and num_hierarchies != backbone.num_hierarchies:
             raise ValueError("Mechanism preprocessing and backbone SID depths differ.")
         input_references = (
@@ -144,19 +154,19 @@ class CoPMRecMechanismDiagnosis(LightningModule):
         self.bootstrap_repetitions = bootstrap_repetitions
         self.rows, self.keys, self.predictions = [], [], defaultdict(list)
         self.metadata = dict(
-            protocol=MECHANISM_PROTOCOL,
+            protocol=LEGACY_MECHANISM_PROTOCOL if legacy else MECHANISM_PROTOCOL,
             evidence_kind="fixed_checkpoint_intervention",
             training_updates=0,
             scope="single_dataset_single_seed",
             training_seed=backbone.initialization_seed,
-            source_variant="untied_residual",
+            source_variant=variant,
             source_reference=source_reference,
             source_sha256=source_sha256,
             prediction_reference=prediction_reference,
             prediction_sha256=reference_predictions.auxiliary.get("source_sha256"),
             input_references=input_references,
             catalog_sha256=backbone.catalog_sha256,
-            generation_conditions=list(GENERATORS),
+            generation_conditions=list(self.generators),
             ranking_conditions=list(RANKERS),
             generation_candidates=generation_candidates,
             top_k=top_k,
@@ -166,11 +176,16 @@ class CoPMRecMechanismDiagnosis(LightningModule):
             decoder_context="full_encoder_states",
             history_exclusion=False,
             rank_ties="stable_catalog_row",
-            reference_arm="learned_catalog",
+            reference_arm=self.reference_arm,
             source_deployment_contract=backbone.deployment_contract,
-            learned_alpha=float(backbone.effective_mixture_alpha()),
+            source_training_contract=backbone.unified_scratch_contract,
+            source_alpha=float(backbone.effective_mixture_alpha()),
+            alpha_policy=backbone.deployment_contract["alpha_policy"],
+            fixed_mixture_alpha=backbone.deployment_contract["fixed_mixture_alpha"],
             bootstrap=dict(rng="PCG64", seed=42, repetitions=bootstrap_repetitions, confidence=0.95, pointwise=True),
         )
+        if legacy:
+            self.metadata["learned_alpha"] = self.metadata["source_alpha"]
 
     def on_test_start(self):
         if self.trainer.world_size != 1:
@@ -202,24 +217,24 @@ class CoPMRecMechanismDiagnosis(LightningModule):
                 mask,
                 processor=(
                     model.candidate_processor(logits)
-                    if name == "learned"
+                    if name == self.production_generation
                     else ProbabilityMixtureProcessor(model.semantic_ids, logits, model.codebook_size, 0.0)
                 ),
                 generation_candidates=self.generation_candidates,
             )
-            for name in GENERATORS
+            for name in self.generators
         }
         cold = (~model.seen_mask).nonzero().flatten()
         pools, unions = {}, []
         for user in range(len(keys)):
-            for name in GENERATORS:
+            for name in self.generators:
                 beam = generated[name][user]
                 if ((beam < -1) | (beam >= len(model.item_keys))).any():
                     raise ValueError("Generated catalog row is invalid.")
                 pools[name, user] = torch.cat((beam[beam >= 0], cold)).unique(sorted=True)
                 if len(pools[name, user]) < self.top_k:
                     raise ValueError("Candidate union cannot supply a legal unique TopK.")
-            unions.append(torch.cat([pools[name, user] for name in GENERATORS]).unique(sorted=True))
+            unions.append(torch.cat([pools[name, user] for name in self.generators]).unique(sorted=True))
         users = torch.cat([torch.full_like(rows, user) for user, rows in enumerate(unions)])
         all_rows = torch.cat(unions)
         decoder_scores = candidate_decoder_scores(
@@ -227,7 +242,7 @@ class CoPMRecMechanismDiagnosis(LightningModule):
         ).split([len(rows) for rows in unions])
         dense_order = logits.argsort(dim=-1, descending=True, stable=True)
         predictions, records = {}, []
-        for name in GENERATORS:
+        for name in self.generators:
             for ranker in RANKERS:
                 arm = f"{name}_{ranker}"
                 arm_predictions = []
@@ -262,9 +277,9 @@ class CoPMRecMechanismDiagnosis(LightningModule):
                         )
                     )
                 predictions[arm] = torch.stack(arm_predictions)
-        if not torch.equal(predictions["learned_catalog"], reference):
-            raise ValueError("Learned-catalog arm does not exactly reproduce the frozen production TopK.")
-        values = {arm: retrieval_values(predictions[arm], labels) for arm in ARMS}
+        if not torch.equal(predictions[self.reference_arm], reference):
+            raise ValueError("Production-catalog arm does not exactly reproduce the frozen production TopK.")
+        values = {arm: retrieval_values(predictions[arm], labels) for arm in self.arms}
         for row in records:
             user = (keys == row["user_key"]).nonzero()[0, 0]
             row.update({metric: float(values[row["variant"]][metric][user]) for metric in METRICS})
@@ -297,12 +312,12 @@ class CoPMRecMechanismDiagnosis(LightningModule):
             raise ValueError("Mechanism analysis contains duplicate user keys.")
         if set(keys.tolist()) != set(self.reference_predictions.keys.tolist()):
             raise ValueError("Mechanism and frozen reference user populations differ.")
-        by_arm = {arm: {} for arm in (*ARMS, "dense_catalog")}
+        by_arm = {arm: {} for arm in (*self.arms, "dense_catalog")}
         for row in self.rows:
             by_arm[row["variant"]][row["user_key"]] = row
         ordered_keys = sorted(keys.tolist())
         values = np.array(
-            [[[by_arm[arm][key][metric] for metric in METRICS] for arm in ARMS] for key in ordered_keys],
+            [[[by_arm[arm][key][metric] for metric in METRICS] for arm in self.arms] for key in ordered_keys],
             dtype=np.float64,
         )
         rng = np.random.Generator(np.random.PCG64(42))
@@ -310,15 +325,16 @@ class CoPMRecMechanismDiagnosis(LightningModule):
             [values[rng.integers(len(values), size=len(values))].mean(0) for _ in range(self.bootstrap_repetitions)]
         )
         comparisons, cases = [], []
+        production_catalog, production_decoder = self.arms[:2]
         pairs = (
-            ("generation_at_catalog", "learned_catalog", "alpha0_catalog"),
-            ("generation_at_decoder", "learned_decoder", "alpha0_decoder"),
-            ("ranking_at_learned", "learned_catalog", "learned_decoder"),
+            ("generation_at_catalog", production_catalog, "alpha0_catalog"),
+            ("generation_at_decoder", production_decoder, "alpha0_decoder"),
+            (f"ranking_at_{self.production_generation}", production_catalog, production_decoder),
             ("ranking_at_alpha0", "alpha0_catalog", "alpha0_decoder"),
-            ("both_at_production", "learned_catalog", "alpha0_decoder"),
+            ("both_at_production", production_catalog, "alpha0_decoder"),
         )
         for name, left, right in pairs:
-            li, ri = ARMS.index(left), ARMS.index(right)
+            li, ri = self.arms.index(left), self.arms.index(right)
             delta = values[:, li] - values[:, ri]
             interval = np.quantile(bootstrap[:, li] - bootstrap[:, ri], [0.025, 0.975], axis=0)
             for metric_index, metric in enumerate(METRICS):
@@ -378,7 +394,7 @@ class CoPMRecMechanismDiagnosis(LightningModule):
             comparisons.append(
                 dict(
                     comparison="generation_ranking_interaction",
-                    direction="(learned_catalog-alpha0_catalog)-(learned_decoder-alpha0_decoder)",
+                    direction=f"({production_catalog}-alpha0_catalog)-({production_decoder}-alpha0_decoder)",
                     metric=metric,
                     n=len(keys),
                     difference=float(interaction[:, index].mean()),

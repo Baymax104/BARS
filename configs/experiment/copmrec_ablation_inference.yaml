@@ -4,11 +4,11 @@ defaults:
 - override /model@model: copmrec_ablation
 - _self_
 ablation_variant: ???
-group: paper_ablation_bars_${dataset_name}
+group: ${bars_ablation_display.${ablation_variant}.group}
 task_name: copmrec_v2_${dataset_name}_seed${seed}_${ablation_variant}_${model.root.prediction_mode}_inference
-run_display_name: bars_v2_${dataset_name}_seed${seed}_${ablation_variant}_${model.root.prediction_mode}_inference
+run_display_name: bars_v2_${dataset_name}_seed${seed}_${bars_ablation_display.${ablation_variant}.name}_${display_evaluation_stages.${evaluation_split}}
 evidence_phase: ablation
-m3_protocol: copmrec-v2-ablation-20261009-v1
+m3_protocol: ${model.ablation_protocol.${ablation_variant}}
 alpha_policy: ${model.ablation_alpha.${ablation_variant}.policy}
 alpha_source: ${model.ablation_alpha.${ablation_variant}.source}
 fixed_mixture_alpha: ${model.ablation_alpha.${ablation_variant}.fixed_mixture_alpha}
@@ -27,7 +27,6 @@ logger:
     - ablation
     - inference
     - ${ablation_variant}
-    - deployment-${model.root.prediction_mode}
 callbacks:
   checkpoint_identity:
     _target_: src.common.callbacks.checkpoint_identity.CheckpointIdentityCallback

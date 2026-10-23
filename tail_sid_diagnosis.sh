@@ -250,7 +250,7 @@ fi
 
 ARGS=(
   experiment=tail_sid_diagnosis
-  group="$GROUP"
+  sid_type="$GROUP"
   data_dir="$DATA_DIR"
   seed="$SEED"
   raw_num_hierarchies=3

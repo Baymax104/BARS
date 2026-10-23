@@ -8,14 +8,16 @@ defaults:
 - /trainer@trainer: sem_embeds_inference
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 devices: ???
 
 embedding_model: ${paths.pretrained_models_dir}/flan-t5-large
 run_mode: inference
 task_name: sem_embeds_inference
+run_display_name: sem_embeds_${display_dataset_name}_seed${seed}_semantic_embedding_export
 project: GRID
 user: baymaxam
-group: sem_embeds
+group: sem_embeds_main
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
 ckpt_path: null
 seed: 42

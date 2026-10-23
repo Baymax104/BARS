@@ -89,3 +89,52 @@ def test_audited_bundle_names_must_match(prediction_file):
         artifacts.load_audited_prediction_bundles({"untied": str(path)}, {"shared": digest})
     result = artifacts.load_audited_prediction_bundles({"untied": str(path)}, {"untied": digest})
     assert result["untied"].auxiliary["source_sha256"] == digest
+
+
+def test_missing_new_comparisons_fail_before_any_artifact_access(monkeypatch):
+    def unexpected_access(*args, **kwargs):
+        pytest.fail("Missing current comparisons must be rejected before resolving or downloading Full.")
+
+    monkeypatch.setattr(artifacts, "load_audited_prediction_output", unexpected_access)
+    with pytest.raises(ValueError, match="explicit matched comparison predictions"):
+        artifacts.load_audited_prediction_bundles(
+            {"untied": "wandb://fixture/GRID/current"}, {"untied": "a" * 64}, minimum_conditions=2
+        )
+
+
+@pytest.mark.parametrize("minimum", [0, -1, True, 1.5])
+def test_minimum_prediction_condition_count_is_validated(minimum):
+    with pytest.raises(ValueError, match="positive integer"):
+        artifacts.load_audited_prediction_bundles({"untied": "current.pt"}, {"untied": "a" * 64}, minimum_conditions=minimum)
+
+
+@pytest.mark.parametrize("actual", [None, "untied_fixed_alpha_half", "untied_residual"])
+def test_current_conditions_reject_historical_training_variants(monkeypatch, actual):
+    def load(*args, **kwargs):
+        return SimpleNamespace(auxiliary={"source_metadata": {"ablation_variant": actual}})
+
+    monkeypatch.setattr(artifacts, "load_audited_prediction_output", load)
+    with pytest.raises(ValueError, match="matched current source variant"):
+        artifacts.load_audited_prediction_bundles(
+            {"untied": "current.pt"}, {"untied": "a" * 64},
+            expected_source_variants={"untied": "untied_fixed_alpha_half_no_mixture"},
+        )
+
+
+def test_current_conditions_accept_exact_source_variant(monkeypatch):
+    expected = "untied_fixed_alpha_half_no_mixture"
+    loaded = SimpleNamespace(auxiliary={"source_metadata": {"ablation_variant": expected}})
+    monkeypatch.setattr(artifacts, "load_audited_prediction_output", lambda *args, **kwargs: loaded)
+    result = artifacts.load_audited_prediction_bundles(
+        {"untied": "current.pt"}, {"untied": "a" * 64}, expected_source_variants={"untied": expected}
+    )
+    assert result["untied"] is loaded
+
+
+def test_current_condition_names_cannot_hide_an_undefined_source(monkeypatch):
+    monkeypatch.setattr(artifacts, "load_audited_prediction_output", lambda *args, **kwargs: pytest.fail("Early gate"))
+    with pytest.raises(ValueError, match="explicit expected source variant"):
+        artifacts.load_audited_prediction_bundles(
+            {"renamed_old_control": "old.pt"}, {"renamed_old_control": "a" * 64},
+            expected_source_variants={"shared": "shared_fixed_alpha_half_no_mixture"},
+        )

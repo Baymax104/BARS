@@ -130,7 +130,7 @@ def test_grouped_scripts_forward_group_and_trailing_overrides(
 
     assert result.returncode == 0, result.stderr
     arguments = result.stdout.splitlines()
-    assert f"group={expected_group}" in arguments
+    assert f"sid_type={expected_group}" in arguments
     assert arguments[-1] == "trainer.root.limit_predict_batches=2"
 
 
@@ -187,9 +187,9 @@ def test_tiger_scripts_override_wandb_group(script_name, equals, tmp_path):
 
     assert result.returncode == 0, result.stderr
     arguments = result.stdout.splitlines()
-    assert "group=rkmeans" in arguments
-    assert f"group={wandb_group}" in arguments
-    assert arguments.index(f"group={wandb_group}") > arguments.index("group=rkmeans")
+    assert "sid_type=rkmeans" in arguments
+    assert f'group="{wandb_group}"' in arguments
+    assert arguments.index(f'group="{wandb_group}"') > arguments.index("sid_type=rkmeans")
 
 
 @pytest.mark.skipif(BASH is None, reason="bash is not available")

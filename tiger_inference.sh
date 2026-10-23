@@ -178,7 +178,7 @@ esac
 
 ARGS=(
   experiment=tiger_inference
-  group="$GROUP"
+  sid_type="$GROUP"
   "ckpt_path=$(quote_hydra_string "$CKPT_PATH")"
   "semantic_id_path=$(quote_hydra_string "$SEMANTIC_ID_PATH")"
   devices="$DEVICES"
@@ -187,7 +187,7 @@ ARGS=(
 )
 
 if [[ -n "$WANDB_GROUP" ]]; then
-  ARGS+=("group=$WANDB_GROUP")
+  ARGS+=("group=$(quote_hydra_string "$WANDB_GROUP")")
 fi
 
 if [[ -n "$NOTES" ]]; then

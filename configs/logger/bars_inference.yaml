@@ -1,6 +1,7 @@
 # @package _global_
 defaults:
 - tiger_inference@_here_
+- bars_display@_global_
 - _self_
 
 wandb:

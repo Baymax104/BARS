@@ -4,18 +4,18 @@
 约束当前推荐方法、正式 CoPMRec 运行面及 checkpoint 身份边界，避免历史实现归档后重新成为活动要求。
 ## Requirements
 ### Requirement: Repository SHALL expose only active research methods
-仓库的可执行 recommendation 方法 SHALL 限于 TIGER、LIGER、CoPMRec、LETTER 与 SASRec；已结题的 BRIR、MIR/item-resolution、CGBS/catalog-grounded 和 training probe SHALL NOT 保留可导入实现或 Hydra experiment 入口。
+仓库的可执行 recommendation 方法 SHALL 限于 TIGER、LIGER、CoPMRec（BARS）、LETTER、SASRec 与 IntRR；已结题的 BRIR、MIR/item-resolution、CGBS/catalog-grounded 和 training probe SHALL NOT 保留可导入实现或 Hydra experiment 入口。
 
 #### Scenario: Enumerate recommendation packages
 - **WHEN** 检查 `src/recommendation/` 下的可导入方法目录
-- **THEN** 只存在上述五种方法及其共享基础实现
+- **THEN** 只存在上述六种方法及其共享基础实现
 
 #### Scenario: Compose experiment entrypoints
 - **WHEN** 枚举 `configs/experiment/` 中的 recommendation 训练与推理入口
 - **THEN** 不得出现已结题方法的 experiment 配置
 
 ### Requirement: CoPMRec SHALL retain its frozen mechanism surface
-CoPMRec SHALL 使用正式 v2 联合视图与 learned mass probability mixture，等权优化 SID CE、joint catalog CE 和 mixture NLL，所有阶段不排除历史商品；消融入口 SHALL 仅支持 no_mixture、no_residual 和 no_joint_ce，不暴露旧 native view、fixed-alpha、content-only 或 legal/max 机制控制。
+CoPMRec SHALL 保留正式 v2 基础运行面及其历史 checkpoint 身份；当前 BARS 主方法 SHALL 使用 `untied_fixed_alpha_half_no_mixture`，固定 alpha=0.5、SID CE／Catalog CE／mixture NLL 权重1/1/0及 hybrid 选点，所有阶段不排除历史商品。消融入口 SHALL 支持已登记的独立变体和当前匹配 M3，严格保持各自协议；不得恢复已退役 native view、content-only 或 legal/max 专用入口。
 
 #### Scenario: Instantiate CoPMRec main method
 - **WHEN** Hydra 装配 `copmrec_train` 或 `copmrec_inference`
@@ -31,7 +31,7 @@ CoPMRec SHALL 使用正式 v2 联合视图与 learned mass probability mixture�
 
 #### Scenario: Load current CoPMRec checkpoint state
 
-- **WHEN** checkpoint 来自相同正式版本、损失契约与输入目录
+- **WHEN** checkpoint 来自相同正式版本、损失契约、输入目录和验证选点协议
 - **THEN** 当前模型严格恢复状态，并在相同部署模式下保持预测一致；显式部署切换由独立契约标注，旧版本或身份不匹配的 checkpoint 被拒绝
 
 ### Requirement: Retired method names SHALL be absent from executable surfaces

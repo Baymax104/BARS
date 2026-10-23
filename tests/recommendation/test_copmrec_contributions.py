@@ -62,6 +62,13 @@ def measure(model):
     return model.structured_analysis_output()
 
 
+def test_current_stage_protocol_does_not_relabel_prediction_source_identity():
+    protocol = "bars-fixed-half-hybrid-m3-20261023-v1"
+    output = measure(diagnosis(protocol=protocol))
+    assert output.metadata["protocol"] == protocol
+    assert output.metadata["prediction_source_metadata"]["no_residual"]["variant"] == "no_residual"
+
+
 @pytest.mark.parametrize("references", [{"dataset": "sports"}, {"training_seed": 200}])
 def test_references_cannot_change_current_mechanism_stage(references):
     with pytest.raises(ValueError, match="Beauty/seed42"):

@@ -12,9 +12,10 @@ ckpt_path: ???
 checkpoint_reference: ${ckpt_path}
 devices: [0]
 seed: 42
-group: sasrec
+group: sasrec_main
 run_mode: inference
 task_name: sasrec_${dataset_name}_inference
+run_display_name: sasrec_${dataset_name}_seed${seed}_test
 project: GRID
 user: baymaxam
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}

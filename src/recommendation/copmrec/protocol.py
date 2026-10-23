@@ -34,6 +34,7 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
         residual_scale=1.0,
         residual_lr_multiplier=20 / 3,
         final_ranking_mode="content",
+        validation_selection_mode="dense",
         **kwargs,
     ):
         if (
@@ -47,26 +48,34 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
             raise ValueError(
                 "Unified scratch requires a nonnegative integer seed, no pretrained weights and the fixed residual protocol."
             )
-        kwargs.setdefault("evaluation_mode", "dense")
+        if not isinstance(validation_selection_mode, str) or validation_selection_mode not in {"dense", "hybrid"}:
+            raise ValueError("Validation selection mode must be dense or hybrid.")
+        kwargs.setdefault("evaluation_mode", validation_selection_mode)
         kwargs.setdefault("prediction_mode", "hybrid")
         if (
-            kwargs["evaluation_mode"] != "dense"
+            kwargs["evaluation_mode"] != validation_selection_mode
             or kwargs["prediction_mode"] not in {"dense", "hybrid"}
             or kwargs.get("candidate_trace", False)
             or kwargs.get("path_trace", False)
         ):
             raise ValueError(
-                "Unified scratch requires dense selection and dense/hybrid prediction without target traces."
+                f"Unified scratch requires {validation_selection_mode} selection, matching evaluation/selection modes, "
+                "and dense/hybrid prediction without target traces."
             )
         super().__init__(residual_scale=1, residual_lr_multiplier=self.lr_multiplier, **kwargs)
+        self.validation_selection_mode = validation_selection_mode
         self.initialization_seed = initialization_seed
         self.restored_step = None
         self._fit_started = False
         self._training_state_checked = False
 
     @property
+    def initial_gate_logit(self):
+        return 0.0
+
+    @property
     def unified_scratch_contract(self):
-        return dict(
+        contract = dict(
             protocol="copmrec-unified-scratch-50k-v1",
             version=self.copmrec_version,
             initialization="random_recommender_zero_gate_and_residual",
@@ -81,20 +90,34 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
             residual_scale=1.0,
             residual_sharing="history_and_catalog_after_content_projection",
             cold_residual="seen_mask_zero",
-            training_validation="raw_full_catalog_dense",
+            training_validation=(
+                "hybrid_beam_plus_all_cold" if self.validation_selection_mode == "hybrid" else "raw_full_catalog_dense"
+            ),
             checkpoint_selection="val/ndcg@10",
             validation_interval=500,
             deployment="raw_full_catalog_dense_without_history_exclusion",
             rank_ties="stable_catalog_row",
         )
+        if self.validation_selection_mode == "hybrid":
+            contract["validation_retrieval"] = dict(
+                mode="hybrid",
+                candidate_strategy=self.candidate_strategy,
+                generation_candidates=self.generation_candidates,
+                top_k=self.top_k,
+                candidate_pool="beam_plus_all_cold",
+                final_score="joint_catalog_logits",
+                rank_ties="stable_catalog_row",
+                history_exclusion=False,
+            )
+        return contract
 
     def eval_step(self, batch):
         model_input, label = batch
         if label is None:
             raise ValueError("Unified scratch checkpoint selection requires labels.")
         losses = self.losses(model_input, label.target_ids)
-        # checkpoint 选优始终使用 dense，不随部署模式改变。
-        sids, scores = Liger.retrieve(self, model_input, "dense")
+        # 选择模式属于训练来源，独立于临时 prediction/diagnosis 设置。
+        sids, scores = Liger.retrieve(self, model_input, self.validation_selection_mode)
         return {**losses, "generated_ids": sids, "labels": label.target_ids, "marginal_probs": scores}
 
     def _optimizer_parameters(self):
@@ -236,7 +259,10 @@ class ScratchTrainingProtocol(SharedCatalogResidual):
         )
         if self.restored_step is None and (
             any(torch.count_nonzero(parameter) for parameter in self._residual_parameters())
-            or torch.count_nonzero(self.dynamic_gate.bias)
+            or not torch.equal(
+                self.dynamic_gate.bias,
+                self.dynamic_gate.bias.new_full((), self.initial_gate_logit),
+            )
         ):
             raise ValueError("Unified scratch fresh fit requires the prescribed zero residual and gate initialization.")
         self._training_state_checked = True

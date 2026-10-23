@@ -4,13 +4,14 @@
 
 ## 当前入口
 
-- [BARS 方法与运行入口](copmrec-versions.md)：Untied主方法、Shared对照、三项训练目标、现有可执行入口及各自证据范围。
-- [BARS Untied Beauty42机制结果](bars-untied-mechanism-results-20261019.md)：三组实验和独立验收完成，商品适配、直接目录CE及生成／排序互补作用支持当前论文主线；附真实来源与阶段决定。
-- [BARS Untied Beauty42机制计划](bars-untied-mechanism-plan-20261019.md)：保留共同零残差贡献、双表去目录CE与固定checkpoint生成／排序2×2的原问题、判断规则及执行记录。
-- [BARS Untied 论文主线](../../research/docs/bars-untied-narrative-20261019.md)：固定内容索引上的商品行为适配与生成排序，附[Beauty42直接配对统计](evidence/bars-untied-narrative-20261019/README.md)。
+- [BARS 方法与运行入口](copmrec-versions.md)：固定 alpha=0.5、两损失 Untied 主方法、hybrid 选点和匹配消融入口。
+- [当前 BARS M2 九格结果](bars-hybrid-m2-results-20261023.md)：三数据集三 seed 的 hybrid Validation／own-best Testing 独立验收。
+- [当前 BARS M3 结果](bars-current-method-m3-results-20261023.md)与[阶段计划](bars-current-method-m3-plan-20261023.md)：Beauty42 匹配消融、生成／排序干预和冻结预测贡献分析。
+- [历史 learned-alpha M3](bars-untied-mechanism-results-20261019.md)：保留三损失与 dense 选点的原始证据范围。
+- [2026-10-23 归档记录](repository-cleanup-20261023.md)：五个已完成变更及正式规范更新。
 - [LETTER 实现](letter.md)与[验证记录](letter-validation.md)：CF teacher、Tokenizer、SID 导出及推荐链路。
 - [SASRec 基线](sasrec-baseline.md)与[实现计划](sasrec-implementation-plan.md)：数据、算法骨干和训练推理协议。
-- [IntRR 基线](intrr.md)：分模块接入、TIGER通用配置、[Beauty三seed结果](intrr-beauty-three-seed-results-20261020.md)与[M4完整矩阵计划](intrr-m4-plan-20261019.md)；完整矩阵当前3/9，其余单元继续训练。
+- [IntRR 基线](intrr.md)：分模块接入、TIGER通用配置与[九格完整结果](intrr-m4-results-20261020.md)；Beauty／Sports／Toys各三seed训练与自身best Testing全部验收，矩阵9/9，剩余运行0。[M4计划](intrr-m4-plan-20261019.md)保留各阶段来源。
 - [2026-10-20归档与提交记录](repository-cleanup-20261020.md)：八个已完成实现提案、正式规范合并与实验完成边界。
 - [运行源码快照](run-source-snapshot.md)：本地可信来源、运行端字节归档与 W&B code Artifact。
 - [2026-10-09 整理记录](repository-cleanup-20261009.md)：OpenSpec 归档范围、规格合并边界和提交分组。

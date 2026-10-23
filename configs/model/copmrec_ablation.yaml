@@ -5,6 +5,38 @@ defaults:
 root:
   _target_: src.recommendation.copmrec.ablation.CoPMRecAblation
   variant: ${ablation_variant}
+  validation_selection_mode: ${model.ablation_validation.${ablation_variant}}
+  evaluation_mode: ${model.root.validation_selection_mode}
+  prediction_mode: ${model.root.validation_selection_mode}
+# 当前主方法及匹配消融使用 hybrid；旧变体保留原 dense 身份。
+ablation_validation:
+  no_mixture: dense
+  no_residual: dense
+  no_joint_ce: dense
+  fixed_alpha_one: dense
+  untied_residual: dense
+  untied_no_joint_ce: dense
+  untied_fixed_alpha_one: dense
+  untied_fixed_alpha_half: dense
+  untied_fixed_alpha_half_no_mixture: hybrid
+  untied_alpha_near_zero: dense
+  shared_fixed_alpha_half_no_mixture: hybrid
+  no_residual_fixed_alpha_half_no_mixture: hybrid
+  untied_fixed_alpha_half_no_joint_ce_no_mixture: hybrid
+ablation_protocol:
+  no_mixture: copmrec-v2-ablation-20261009-v1
+  no_residual: copmrec-v2-ablation-20261009-v1
+  no_joint_ce: copmrec-v2-ablation-20261009-v1
+  fixed_alpha_one: copmrec-v2-ablation-20261009-v1
+  untied_residual: copmrec-v2-ablation-20261009-v1
+  untied_no_joint_ce: copmrec-v2-ablation-20261009-v1
+  untied_fixed_alpha_one: copmrec-v2-ablation-20261009-v1
+  untied_fixed_alpha_half: copmrec-v2-ablation-20261009-v1
+  untied_fixed_alpha_half_no_mixture: copmrec-v2-ablation-20261009-v1
+  untied_alpha_near_zero: copmrec-v2-ablation-20261009-v1
+  shared_fixed_alpha_half_no_mixture: bars-fixed-half-hybrid-m3-20261023-v1
+  no_residual_fixed_alpha_half_no_mixture: bars-fixed-half-hybrid-m3-20261023-v1
+  untied_fixed_alpha_half_no_joint_ce_no_mixture: bars-fixed-half-hybrid-m3-20261023-v1
 ablation_weights:
   no_mixture:
     joint_catalog_ce: 1.0
@@ -24,6 +56,27 @@ ablation_weights:
   untied_no_joint_ce:
     joint_catalog_ce: 0.0
     mixture_nll: 1.0
+  untied_fixed_alpha_one:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+  untied_fixed_alpha_half:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+  untied_fixed_alpha_half_no_mixture:
+    joint_catalog_ce: 1.0
+    mixture_nll: 0.0
+  untied_alpha_near_zero:
+    joint_catalog_ce: 1.0
+    mixture_nll: 1.0
+  shared_fixed_alpha_half_no_mixture:
+    joint_catalog_ce: 1.0
+    mixture_nll: 0.0
+  no_residual_fixed_alpha_half_no_mixture:
+    joint_catalog_ce: 1.0
+    mixture_nll: 0.0
+  untied_fixed_alpha_half_no_joint_ce_no_mixture:
+    joint_catalog_ce: 0.0
+    mixture_nll: 0.0
 # content_mixture_alpha 是基础兼容参数；这里登记变体实际使用的 gate 策略。
 ablation_alpha:
   no_mixture:
@@ -50,6 +103,36 @@ ablation_alpha:
     policy: learned
     source: checkpoint
     fixed_mixture_alpha: null
+  untied_fixed_alpha_one:
+    policy: frozen_1
+    source: fixed
+    fixed_mixture_alpha: 1.0
+  untied_fixed_alpha_half:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
+  untied_fixed_alpha_half_no_mixture:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
+  untied_alpha_near_zero:
+    policy: learned
+    source: checkpoint
+    fixed_mixture_alpha: null
+    initial_alpha: 0.0001
+    parameterization: sigmoid_logit
+  shared_fixed_alpha_half_no_mixture:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
+  no_residual_fixed_alpha_half_no_mixture:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
+  untied_fixed_alpha_half_no_joint_ce_no_mixture:
+    policy: frozen_0.5
+    source: fixed
+    fixed_mixture_alpha: 0.5
 # 表数为实际存储的商品残差表数；no_residual 保留一张冻结零表。
 ablation_residual:
   no_mixture:
@@ -76,3 +159,31 @@ ablation_residual:
     sharing: untied_history_catalog
     table_count: 2
     comparison_protocol: bars-untied-mechanism-beauty42-20261019-v1
+  untied_fixed_alpha_one:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: temporary-bars-untied-alpha-one-v1
+  untied_fixed_alpha_half:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: temporary-bars-untied-alpha-half-v1
+  untied_fixed_alpha_half_no_mixture:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: temporary-bars-untied-alpha-half-no-mixture-v1
+  untied_alpha_near_zero:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: temporary-bars-untied-alpha-near-zero-v1
+  shared_fixed_alpha_half_no_mixture:
+    sharing: shared_history_catalog
+    table_count: 1
+    comparison_protocol: bars-fixed-half-hybrid-m3-20261023-v1
+  no_residual_fixed_alpha_half_no_mixture:
+    sharing: frozen_zero_both
+    table_count: 1
+    comparison_protocol: bars-fixed-half-hybrid-m3-20261023-v1
+  untied_fixed_alpha_half_no_joint_ce_no_mixture:
+    sharing: untied_history_catalog
+    table_count: 2
+    comparison_protocol: bars-fixed-half-hybrid-m3-20261023-v1

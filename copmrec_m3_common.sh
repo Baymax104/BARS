@@ -32,7 +32,7 @@ copmrec_m3_parse() {
 }
 copmrec_m3_require_variant() {
   case "$m3_variant" in
-    no_mixture|no_residual|no_joint_ce|fixed_alpha_one|untied_residual|untied_no_joint_ce) ;;
+    no_mixture|no_residual|no_joint_ce|fixed_alpha_one|untied_residual|untied_no_joint_ce|untied_fixed_alpha_one|untied_fixed_alpha_half|untied_fixed_alpha_half_no_mixture|untied_alpha_near_zero|shared_fixed_alpha_half_no_mixture|no_residual_fixed_alpha_half_no_mixture|untied_fixed_alpha_half_no_joint_ce_no_mixture) ;;
     *) echo "Error: --variant requires a defined M3 ablation." >&2; return 2 ;;
   esac
 }

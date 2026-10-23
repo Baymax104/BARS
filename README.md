@@ -2,7 +2,7 @@
 
 GRID 是利用商品内容开展生成式推荐研究的实验代码库，基于 PyTorch、Lightning 和 Hydra，将语义向量生成、量化、semantic ID（SID）生成、推荐训练、推理与诊断接入统一入口。
 
-当前可运行的推荐方法包括 **TIGER、LIGER、CoPMRec、LETTER 和 SASRec**。LIGER 等内容生成式推荐方法是主要比较对象；TIGER 同时提供基础架构与基础对照，SASRec 提供序列推荐对照。各方法在本仓库中的实现与协议以配置、脚本和对应说明为准。
+当前可运行的推荐方法包括 **TIGER、LIGER、BARS（CoPMRec）、LETTER、SASRec 和 IntRR**。LIGER 等内容生成式推荐方法是主要比较对象；TIGER 同时提供基础架构与基础对照，SASRec 提供序列推荐对照。各方法在本仓库中的实现与协议以配置、脚本和对应说明为准。
 
 ## 环境与安装
 
@@ -18,7 +18,7 @@ uv sync --locked
 
 所有命令均从仓库根目录执行。使用 W&B logger 前需配置相应账号与凭据；项目、分组和实验说明通过 `logger.wandb.project`、`logger.wandb.group`、`logger.wandb.notes` 设置。
 
-BARS 的 W&B 显示名与 group 使用 `bars`：默认组为 `paper_main_bars_<dataset>`（Shared Full）、`paper_ablation_bars_<dataset>`（含 Untied 的各 variant）和 `paper_mechanism_bars_<dataset>`（原诊断入口）。显示名沿用原任务模板并将方法前缀替换为 `bars`；`task_name`、`copmrec` 入口、协议及 Artifact 身份保留。显式 `--group`、`logger.wandb.group` 或 `logger.wandb.name` 可以覆盖默认显示值，当前 Linear 参考命令同步使用新命名；既有 run 的执行 config 和历史 argv 保留原记录。规则与边界见[BARS 运行入口](docs/copmrec-versions.md)，逐 run 映射见[命名统一回执](docs/evidence/bars-naming-unification-20261020/README.md)。
+W&B 默认按研究角色分组：主实验使用 `{method}_main`（如 `bars_main`、`intrr_main`），消融使用 `ablation_main`，机制分析使用 `mechanism_main`。显示名区分方法、数据集、seed、变体和阶段；BARS 使用 `bars` 显示前缀，内部 `copmrec` 入口、checkpoint 和 Artifact 身份保持。旧 learned-alpha 主变体归入 `history`。显式显示组参数及尾随 Hydra override 可覆盖默认显示值，配置规则见 `configs/logger/bars_display.yaml`。
 
 ## 目录与配置
 
@@ -44,7 +44,7 @@ Experiment 保持薄入口职责，最终行为由其 `defaults` 组合出的组
 | 商品语义向量生成 | `sem_embeds_inference` |
 | 量化器训练 | `rqvae_train`、`rvq_train`、`rkmeans_train` |
 | SID 生成 | `rqvae_inference`、`rvq_inference`、`rkmeans_inference` |
-| 推荐训练与推理 | `tiger_train/inference`、`liger_train/inference`、`copmrec_train/inference`、`letter_train/inference`、`sasrec_train/inference` |
+| 推荐训练与推理 | `tiger_train/inference`、`liger_train/inference`、`copmrec_train/inference`、`letter_train/inference`、`sasrec_train/inference`、`intrr_train/inference` |
 | LETTER 前置链路 | `letter_cf_train` → `letter_cf_export` → `letter_tokenizer_train` → `letter_sid` |
 | 诊断分析 | `tail_sid_diagnosis`、`tiger_prefix_trace`、`tiger_prefix_allocation_probe`、`copmrec_diagnosis` |
 | CoPMRec 消融 | `copmrec_ablation_train`、`copmrec_ablation_inference` |
@@ -64,17 +64,19 @@ uv run -m src.main experiment=copmrec_train --cfg job
 
 ## BARS（CoPMRec v2）运行示例
 
-2026-10-19 按用户决定，**BARS Untied 为当前主方法，BARS Shared 保留为共享残差对照**。Untied为历史侧和目录侧分别学习商品 residual，内容投影仍共享；联合优化 SID CE、完整目录 joint CE 和 mixture NLL，使用可学习的概率混合。训练、验证、推理均关闭历史商品排除。训练从头初始化，双 GPU、FP32、50,000 个 optimizer update，每500步dense Validation按各自 `val/ndcg@10` 选择own-best；训练结束后不自动执行 Testing。
+当前主方法为 **BARS Untied，固定 alpha=0.5、移除 mixture NLL**，变体身份为 `untied_fixed_alpha_half_no_mixture`。历史侧和目录侧分别学习商品 residual，内容投影共享，SID CE／Catalog CE／mixture NLL 权重为 1/1/0。训练从头初始化，双 GPU、FP32、50,000 次 optimizer update；每500步使用 hybrid Validation，按自身首次最高 `val/ndcg@10` 选择 own-best，训练结束后不自动执行 Testing。
 
-当前代码保留原入口和checkpoint身份：Untied通过 `copmrec_ablation_train/inference.sh --variant untied_residual` 运行；裸 `copmrec_train/inference.sh` 仍运行Shared。Untied三数据集×三seed主矩阵已完成9/9并独立验收，见[最终矩阵回执](docs/evidence/bars-untied-m2-final-20261019/README.md)；Shared九格保留独立对照身份。
+验证和推荐共用混合概率 beam20、全部 cold 商品并集、目录 logits 稳定 Top10，不排除历史商品。公共推理脚本默认 hybrid，并拒绝 dense 部署；显示阶段为 `test` 或 `validation`。
 
-[Beauty42机制链路与贡献实验](docs/bars-untied-mechanism-results-20261019.md)三组均已完成并独立验收。双表去直接目录CE使用 `--variant untied_no_joint_ce`；固定预测贡献与生成／排序2×2使用机制脚本，重训移除与固定checkpoint干预分别解释。
+据已保存的独立验收回执，[当前 M2 主矩阵](docs/bars-hybrid-m2-results-20261023.md)覆盖 Beauty／Sports／Toys × seed42／200／2026 共9/9格。[当前 Beauty42 M3](docs/bars-current-method-m3-results-20261023.md)的三个匹配消融、生成／排序机制及冻结预测贡献分析均已验收。IntRR 的[九格基线矩阵](docs/intrr-m4-results-20261020.md)也已完成。实验状态与预算仍由相邻 research 仓库管理；本页引用已有验收，不授权新增运行。
+
+旧 `untied_residual` 的 learned-alpha／三损失矩阵与旧 Shared 结果保留历史来源。裸 `copmrec_train/inference.sh` 使用历史 Shared 配方；当前匹配 Shared 消融需要明确指定 `shared_fixed_alpha_half_no_mixture`，不能直接复用旧配方。
 
 以下 Bash 示例中的路径仅展示参数形式，需替换为实际数据、对齐后的 SID 和商品语义向量。运行脚本前先安装锁定环境；脚本默认设置 `UV_NO_SYNC=1`。
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
-  --variant untied_residual \
+  --variant untied_fixed_alpha_half_no_mixture \
   --data-dir data/beauty \
   --dataset beauty \
   --semantic-id-path logs/inputs/beauty/semantic_ids.pt \
@@ -82,7 +84,7 @@ CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
   --devices '[0,1]' \
   --seed 42 \
   --master-port 29730 \
-  --notes "BARS Untied; Beauty; seed=42"
+  --notes "BARS Untied; fixed alpha=0.5; no mixture NLL; Beauty; seed=42"
 ```
 
 `CUDA_VISIBLE_DEVICES=0,1` 选择物理 GPU，`--devices '[0,1]'` 使用其映射后的逻辑编号。正式训练脚本要求两个进程，并拒绝通过 checkpoint 恢复训练。
@@ -91,7 +93,7 @@ CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_ablation_inference.sh \
-  --variant untied_residual \
+  --variant untied_fixed_alpha_half_no_mixture \
   --deployment hybrid \
   --data-dir data/beauty \
   --dataset beauty \
@@ -105,7 +107,9 @@ CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_ablation_inference.sh \
   --notes "BARS Untied; own-best; hybrid Testing"
 ```
 
-`--split validation` 对应 `evaluation` 数据目录，`--split testing` 对应 `testing`。Shared对照使用 `copmrec_train.sh` / `copmrec_inference.sh`，省略 `--variant`，并指定其自身checkpoint。现有 `no_mixture`、`no_residual`、`no_joint_ce`、`fixed_alpha_one` 对照和 `hits`、`residual`、`prefix` 诊断保留Shared来源；Untied去直接目录CE为已完成的Beauty42机制单元。具体输入、结果范围和后续计划见 [BARS 方法与运行入口](docs/copmrec-versions.md)。
+`--split validation` 对应 `evaluation` 数据目录，`--split testing` 对应 `testing`。当前三个匹配消融使用同一 ablation 入口，变体分别为 `shared_fixed_alpha_half_no_mixture`、`no_residual_fixed_alpha_half_no_mixture`、`untied_fixed_alpha_half_no_joint_ce_no_mixture`，协议为 `bars-fixed-half-hybrid-m3-20261023-v1`。每臂只消费自身 own-best checkpoint；旧 dense 选点来源与当前 hybrid 来源不能混用。
+
+机制与贡献共用 `bars_untied_mechanism.sh`：`--analysis generation` 固定当前 Full 做生成／排序干预，`--analysis contributions` 读取明确 URI／SHA 的匹配预测做零 forward 分析。历史来源需显式选择。输入与证据范围见 [BARS 方法与运行入口](docs/copmrec-versions.md)。
 
 ## 数据、产物与来源追溯
 
@@ -143,7 +147,8 @@ uv run pytest
 
 - [文档索引](docs/README.md)：当前实现、验证与历史材料的统一入口。
 - [SASRec 基线](docs/sasrec-baseline.md)：序列推荐对照及数据协议。
-- [仓库整理记录](docs/repository-cleanup-20261009.md)：规格归档与提交分组。
+- [本轮归档记录](docs/repository-cleanup-20261023.md)：五个已完成变更、正式规范与验证边界。
+- [IntRR 基线](docs/intrr.md)：实现协议与已完成九格结果。
 - 当前研究状态与计划由相邻 research 仓库的 `research-state.yaml` 和 `ideas/current-plan.md` 管理；历史文档与归档不自动恢复已暂停路线或授权新实验。
 
 Git 保存说明文档、规格和归档索引。原始实验输出、日志、退役源码 ZIP 与其他大体积证据保留本地，具体保存边界见 [文档索引](docs/README.md#文件保存范围)。

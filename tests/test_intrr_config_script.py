@@ -54,7 +54,7 @@ def test_composed_nonmodel_protocol_is_identical_to_tiger(mode):
     ):
         assert intrr[field] == tiger[field], field
     assert intrr.sequence_length == 180 and intrr.num_hierarchies == 4 and intrr.codebook_size == 256
-    assert intrr.group == "intrr" and intrr.sid_type == "rkmeans"
+    assert intrr.group == "intrr_main" and intrr.sid_type == "rkmeans"
     assert intrr.upstream_commit == "806e0f1969ed61a0748902649b335c0ea066de00"
     assert intrr.model.root.top_k_for_generation == 10 and intrr.model.root.should_check_prefix
     assert intrr.model.root.sequence_length == tiger.sequence_length

@@ -11,13 +11,14 @@ semantic_id_path: ???
 embedding_path: ???
 dataset_name: ???
 devices: ???
-group: liger
+group: liger_main
 num_hierarchies: 4
 codebook_size: 256
 max_history_items: 20
 sequence_length: 80
 run_mode: inference
 task_name: liger_${dataset_name}_inference
+run_display_name: liger_${dataset_name}_seed${seed}_${model.root.prediction_mode}_test
 project: GRID
 user: baymaxam
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}

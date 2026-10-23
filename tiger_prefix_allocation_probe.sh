@@ -118,7 +118,7 @@ fi
 
 ARGS=(
   experiment=tiger_prefix_allocation_probe
-  group="$GROUP"
+  sid_type="$GROUP"
   data_dir="$DATA_DIR"
   data_split="$DATA_SPLIT"
   beam_width="$BEAM_WIDTH"

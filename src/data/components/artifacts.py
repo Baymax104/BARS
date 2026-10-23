@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+from collections.abc import Mapping
 from contextvars import ContextVar
 
 import torch
@@ -123,20 +124,40 @@ def load_audited_prediction_output(file_path, sha256, expected_deployment_contra
     return output
 
 
-def load_audited_prediction_bundles(paths, sha256s, expected_deployment_contract=None, **kwargs):
+def load_audited_prediction_bundles(
+    paths, sha256s, expected_deployment_contract=None, minimum_conditions=1, expected_source_variants=None, **kwargs
+):
     """逐条件读取明确URI与SHA的预测，不将显示名当作原模型身份。"""
     if not paths or set(paths) != set(sha256s):
         raise ValueError("Prediction paths and audited SHA256 names must match.")
-    return {
-        name: load_audited_prediction_output(
+    if type(minimum_conditions) is not int or minimum_conditions < 1:
+        raise ValueError("Minimum prediction conditions must be a positive integer.")
+    if len(paths) < minimum_conditions:
+        raise ValueError(
+            "Contribution analysis requires explicit matched comparison predictions and audited SHA256s; "
+            "current Full alone cannot establish a comparison."
+        )
+    if expected_source_variants is not None and (
+        not isinstance(expected_source_variants, Mapping)
+        or not set(paths).issubset(expected_source_variants)
+        or any(not isinstance(expected_source_variants[name], str) for name in paths)
+    ):
+        raise ValueError("Each prediction condition requires an explicit expected source variant.")
+    outputs = {}
+    for name, reference in paths.items():
+        output = load_audited_prediction_output(
             reference,
             sha256s[name],
             expected_deployment_contract=expected_deployment_contract,
             field_name=f"prediction_paths.{name}",
             **kwargs,
         )
-        for name, reference in paths.items()
-    }
+        if expected_source_variants is not None:
+            actual_variant = output.auxiliary.get("source_metadata", {}).get("ablation_variant")
+            if actual_variant != expected_source_variants[name]:
+                raise ValueError(f"prediction_paths.{name} requires its matched current source variant.")
+        outputs[name] = output
+    return outputs
 
 
 DEFAULT_ROLE_BY_FIELD = {

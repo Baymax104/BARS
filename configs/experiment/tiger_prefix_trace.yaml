@@ -8,6 +8,7 @@ defaults:
 - /trainer@trainer: tiger_inference
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 data_split: ???
 semantic_id_path: ???
 ckpt_path: ???
@@ -19,9 +20,11 @@ devices: ???
 
 run_mode: inference
 task_name: tiger_prefix_trace
+run_display_name: tiger_${display_dataset_name}_seed${seed}_${sid_type}_prefix_trace_analysis
 project: GRID
 user: baymaxam
-group: ???
+group: mechanism_main
+sid_type: ???
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
 seed: 42
 sequence_length: 180

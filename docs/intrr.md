@@ -51,6 +51,10 @@ bash intrr_inference.sh \
 
 ## 正式实验计划
 
+2026-10-20最终完成九格矩阵：Beauty／Sports／Toys三个数据集、各三个seed的训练与自身best全量Testing均独立验收通过。NDCG@10 mean±sample std依次为0.03092673±0.00060175／0.01439775±0.00063336／0.02902645±0.00055261。累计9训练／450k＋9Testing，剩余运行0；[最终报告](intrr-m4-results-20261020.md)保存完整四指标、逐格来源及验证边界。以下阶段记录保留历史时点。
+
+2026-10-20后续按用户指令完成Sports三seed自身best全量Testing，各35,598用户及独立审计通过；NDCG@10 mean±sample std为0.01439775±0.00063336。Beauty与Sports共6/9格完成；Toys42继续GPU4/5训练，另外两格排队。[Sports三seed报告](intrr-sports-three-seed-results-20261020.md)保存四指标及来源，以下Beauty阶段3/9记录保留原时点。
+
 2026-10-20按用户继续指令完成Beauty200／2026的自身best全量Testing并独立验收，Beauty三seed齐全；NDCG@10 mean±sample std为0.03092673±0.00060175。其余六格曾因全局源码守卫在起训前阻断，经核准仅七份无关BARS配置变化、IntRR依赖不变后恢复，Sports42训练中、其余五格排队；完整矩阵3/9。详见[Beauty三seed报告与恢复状态](intrr-beauty-three-seed-results-20261020.md)。
 
 2026-10-20已完成一次零forward[训练耗时排查](intrr-speed-diagnosis-20261020.md)：当前run后半段显著变慢，主要证据指向GPU0/7上的跨用户计算竞争；原协议下全量验证占比较高，并发现eval路径两次编码历史的既有冗余。本次仅诊断，正式训练与队列配置保持。

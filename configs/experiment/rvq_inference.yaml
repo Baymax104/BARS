@@ -8,6 +8,7 @@ defaults:
 - /trainer@trainer: rvq_inference
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 embedding_path: ???
 codebook_size: 256
 num_hierarchies: 3
@@ -17,9 +18,10 @@ devices: ???
 
 run_mode: inference
 task_name: rvq_inference
+run_display_name: rvq_${display_dataset_name}_seed${seed}_sid_export
 project: GRID
 user: baymaxam
-group: rvq
+group: rvq_main
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
 seed: 42
 paths:

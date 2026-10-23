@@ -1,4 +1,4 @@
-"""CoPMRec v2：联合视图训练、dense 选优与独立的 hybrid 部署。"""
+"""CoPMRec v2：联合视图训练、显式验证选点与hybrid推荐。"""
 
 import torch
 
@@ -25,8 +25,15 @@ class CoPMRec(FullCatalogObjective):
 
     @property
     def unified_scratch_contract(self):
-        # 既有 checkpoint 的训练身份保持原值；当前部署由独立契约描述。
-        return {**super().unified_scratch_contract, "deployment": "raw_full_catalog_dense_without_history_exclusion"}
+        # 旧dense来源保持原值；新hybrid训练同时登记一致的候选部署。
+        return {
+            **super().unified_scratch_contract,
+            "deployment": (
+                "hybrid_beam_plus_all_cold_without_history_exclusion"
+                if self.validation_selection_mode == "hybrid"
+                else "raw_full_catalog_dense_without_history_exclusion"
+            ),
+        }
 
     @property
     def deployment_contract(self):

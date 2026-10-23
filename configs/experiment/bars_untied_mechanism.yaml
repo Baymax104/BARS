@@ -5,10 +5,14 @@ defaults:
 - override /model@model: bars_untied_mechanism
 - _self_
 analysis_kind: generation_ranking
+ckpt_path: wandb://baymaxam/GRID/httwyhka?role=checkpoint&alias=v0&file=checkpoint_epoch=000_step=046000.ckpt
+checkpoint_sha256: f2ffd7939483c4e16fa9359a2a856865386d0823d6285321c53df1f1391ca4c9
 diagnosis_backbone:
   root:
     _target_: src.recommendation.copmrec.ablation.CoPMRecAblation
-    variant: untied_residual
+    variant: ${analysis_source_variant}
+    validation_selection_mode: ${model.analysis_source_contracts.${analysis_source_variant}.validation_selection_mode}
+    evaluation_mode: ${diagnosis_backbone.root.validation_selection_mode}
     prediction_mode: hybrid
 trainer:
   root:
@@ -16,5 +20,5 @@ trainer:
     devices: ${devices}
 logger:
   wandb:
-    notes: 固定Untied own-best；两搜索四排序，beam20加全部cold；同池比较catalog与合法decoder路径分数；production逐用户复现门禁；0参数更新。
+    notes: 来源=${analysis_source_variant} own-best；alpha=${model.expected_deployment_contract.alpha_policy}/${model.expected_deployment_contract.fixed_mixture_alpha}；生成production对0乘catalog对合法decoder路径分数；beam20加全部cold；production逐用户复现门禁；0参数更新，不预设混合必要性。
     tags: [bars, untied, mechanism, generation-ranking, beauty42]

@@ -8,9 +8,10 @@ defaults:
 dataset_name: ???
 devices: [0, 1]
 seed: 42
-group: letter
+group: letter_main
 run_mode: inference
 task_name: letter_inference_${dataset_name}
+run_display_name: letter_${dataset_name}_seed${seed}_test
 project: GRID
 user: baymaxam
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}

@@ -8,8 +8,28 @@ expected_deployment_contract:
   final_score: joint_catalog_logits
   rank_ties: stable_catalog_row
   history_exclusion: false
-  alpha_policy: learned
-  alpha_source: checkpoint
-  fixed_mixture_alpha: null
+  alpha_policy: ${model.analysis_source_contracts.${analysis_source_variant}.alpha_policy}
+  alpha_source: ${model.analysis_source_contracts.${analysis_source_variant}.alpha_source}
+  fixed_mixture_alpha: ${model.analysis_source_contracts.${analysis_source_variant}.fixed_mixture_alpha}
+analysis_source_contracts:
+  untied_fixed_alpha_half_no_mixture:
+    protocol: bars-fixed-half-hybrid-m3-20261023-v1
+    validation_selection_mode: hybrid
+    alpha_policy: frozen_0.5
+    alpha_source: fixed
+    fixed_mixture_alpha: 0.5
+    prediction_variants:
+      untied: untied_fixed_alpha_half_no_mixture
+      shared: shared_fixed_alpha_half_no_mixture
+      no_residual: no_residual_fixed_alpha_half_no_mixture
+      no_joint_ce: untied_fixed_alpha_half_no_joint_ce_no_mixture
+  # 历史复现须显式选择来源并提供旧 checkpoint/预测的 URI 与 SHA。
+  untied_residual:
+    protocol: bars-untied-mechanism-beauty42-20261019-v1
+    validation_selection_mode: dense
+    alpha_policy: learned
+    alpha_source: checkpoint
+    fixed_mixture_alpha: null
+    prediction_variants: null
 training_model_config: null
 metrics: null

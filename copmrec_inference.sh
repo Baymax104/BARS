@@ -11,11 +11,11 @@ deployment=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --deployment)
-      [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "Error: --deployment requires hybrid or dense." >&2; exit 2; }
+      [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "Error: BARS defaults to hybrid; --deployment requires hybrid." >&2; exit 2; }
       deployment="$2"; shift 2 ;;
     --deployment=*)
       deployment="${1#*=}"
-      [[ -n "$deployment" ]] || { echo "Error: --deployment requires hybrid or dense." >&2; exit 2; }
+      [[ -n "$deployment" ]] || { echo "Error: BARS defaults to hybrid; --deployment requires hybrid." >&2; exit 2; }
       shift ;;
     --checkpoint-sha256)
       [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || { echo "Error: --checkpoint-sha256 requires a value." >&2; exit 2; }
@@ -34,6 +34,12 @@ while [[ $# -gt 0 ]]; do
       echo "Error: provide the selected formal checkpoint using --checkpoint." >&2
       exit 2
       ;;
+    model.root.prediction_mode=*|+model.root.prediction_mode=*|++model.root.prediction_mode=*|inference_deployment_mode=*|+inference_deployment_mode=*|++inference_deployment_mode=*)
+      case "${1#*=}" in
+        hybrid|'"hybrid"'|"'hybrid'") ;;
+        *) echo "Error: BARS evaluation uses hybrid; dense evaluation is retired." >&2; exit 2 ;;
+      esac
+      common_args+=("$1"); shift ;;
     --data-dir|--semantic-id-path|--embedding-path|--checkpoint|--dataset|--devices|--notes|--group|--seed|--master-port)
       [[ $# -ge 2 ]] || { echo "Error: $1 requires a non-empty value." >&2; exit 2; }
       common_args+=("$1" "$2")
@@ -53,11 +59,11 @@ case "$split" in
   testing) split_args=(evaluation_split=testing evaluation_data_folder=testing) ;;
   *) echo "Error: --split requires validation or testing." >&2; exit 2 ;;
 esac
-deployment_args=()
+deployment_args=("model.root.prediction_mode=hybrid")
 if [[ -n "$deployment" ]]; then
   case "$deployment" in
-    hybrid|dense) deployment_args+=("model.root.prediction_mode=$deployment") ;;
-    *) echo "Error: --deployment requires hybrid or dense." >&2; exit 2 ;;
+    hybrid) ;;
+    *) echo "Error: BARS evaluation uses hybrid; dense evaluation is retired." >&2; exit 2 ;;
   esac
 fi
 

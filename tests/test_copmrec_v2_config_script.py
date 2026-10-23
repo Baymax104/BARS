@@ -54,9 +54,9 @@ def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash,
     OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     assert cfg.copmrec_version == cfg.implementation_version == cfg.method_version == "v2"
     assert cfg.logger.wandb.notes == notes
-    expected_group = f"paper_{'ablation' if variant else 'main'}_bars_beauty"
+    expected_group = "history" if variant == "untied_residual" else "ablation_main"
     assert cfg.group == cfg.logger.wandb.group == expected_group
-    assert cfg.run_display_name == cfg.task_name.replace("copmrec", "bars", 1)
+    assert cfg.run_display_name.startswith("bars_v2_beauty_seed42_")
     assert re.fullmatch(re.escape(cfg.run_display_name) + r"/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}", cfg.logger.wandb.name)
     assert cfg.task_name.startswith("copmrec_v2_")
     writer = cfg.callbacks.wandb_checkpoint_writer if stage == "train" else cfg.callbacks.wandb_artifact_writer
@@ -115,24 +115,20 @@ def test_actual_script_composes_v2_single_or_dual_card_notes_and_overrides(bash,
 @pytest.mark.parametrize(
     "mode_args", [["--deployment=dense"], ["--deployment", "dense"], ["model.root.prediction_mode=dense"]]
 )
-def test_dense_override_changes_actual_deployment_metadata_and_notes(bash, variant, mode_args):
+def test_retired_dense_deployment_is_rejected_before_launch(bash, variant, mode_args):
     args = ["--devices", "[0]", "--checkpoint", "own.ckpt", "--checkpoint-sha256", "8" * 64, *mode_args]
     if variant:
         args += ["--variant", variant]
     r = launch(bash, "copmrec_" + ("ablation_" if variant else "") + "inference.sh", args)
-    assert r.returncode == 0, r.stderr
-    cfg = compose_argv(r.stdout.splitlines())
-    metadata = cfg.callbacks.wandb_artifact_writer.metadata
-    assert cfg.model.root.prediction_mode == cfg.model.root.evaluation_mode == "dense"
-    assert metadata.deployment_contract.mode == "dense"
-    assert metadata.deployment_contract.candidate_pool == "all_catalog"
-    assert metadata.history_eligibility_contract.protocol == "copmrec-final-history-exclusion-off-v1"
-    assert metadata.history_eligibility_contract.score_rule == "unchanged_full_catalog_logits"
-    assert "部署=dense" in cfg.logger.wandb.notes
-    assert cfg.task_name.endswith("_dense_inference")
+    assert r.returncode != 0 and "dense evaluation is retired" in r.stderr
+    assert not r.stdout.strip()
 
 
-def test_deployment_option_preserves_late_override_priority(bash):
+@pytest.mark.parametrize(
+    "mode_override",
+    ["model.root.prediction_mode=hybrid", 'model.root.prediction_mode="hybrid"', "model.root.prediction_mode='hybrid'", "++inference_deployment_mode=hybrid"],
+)
+def test_deployment_option_preserves_late_override_priority(bash, mode_override):
     r = launch(
         bash,
         "copmrec_inference.sh",
@@ -144,13 +140,16 @@ def test_deployment_option_preserves_late_override_priority(bash):
             "--checkpoint-sha256",
             "8" * 64,
             "--deployment",
-            "dense",
-            "model.root.prediction_mode=hybrid",
+            "hybrid",
+            mode_override,
+            "model.root.generation_candidates=17",
         ],
     )
     assert r.returncode == 0, r.stderr
     cfg = compose_argv(r.stdout.splitlines())
     assert cfg.model.root.prediction_mode == cfg.deployment_contract.mode == "hybrid"
+    assert cfg.model.root.generation_candidates == 17
+    assert cfg.run_display_name.endswith("_test") and "_hybrid_" not in cfg.run_display_name
 
 
 @pytest.mark.parametrize("stage", ["train", "inference"])
@@ -208,8 +207,8 @@ def test_diagnosis_uses_single_card_Trainer_test_and_v2(bash, analysis, variant)
     OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     assert cfg.run_mode == "analysis" and cfg.method_version == "v2"
     assert cfg.model.root.exclude_history is False and cfg.logger.wandb.notes == "override wins"
-    assert cfg.group == cfg.logger.wandb.group == "paper_mechanism_bars_beauty"
-    assert cfg.run_display_name == cfg.task_name.replace("copmrec", "bars", 1)
+    assert cfg.group == cfg.logger.wandb.group == "mechanism_main"
+    assert cfg.run_display_name == f"bars_v2_beauty_seed42_shared_{variant}_{analysis}_analysis"
     assert cfg.logger.wandb.name.startswith(cfg.run_display_name + "/")
     assert cfg.callbacks.structured_analysis.artifact_name == cfg.task_name + "-analysis"
     assert "--dry-run" in r.stdout and "--nproc_per_node=2" not in r.stdout

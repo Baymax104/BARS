@@ -15,7 +15,7 @@ DYNAMIC_GROUP_EXPERIMENTS = {
 
 
 def _compose_experiment(experiment: str, extra_overrides: list[str] | None = None):
-    group_overrides = ["group=rkmeans"] if experiment in DYNAMIC_GROUP_EXPERIMENTS else []
+    group_overrides = ["sid_type=rkmeans"] if experiment in DYNAMIC_GROUP_EXPERIMENTS else []
     trace_overrides = ["data_split=evaluation", "beam_width=10"] if experiment == "tiger_prefix_trace" else []
     with initialize(version_base=None, config_path="../configs"):
         return compose(
@@ -75,13 +75,13 @@ def test_wandb_loggers_use_experiment_user():
 @pytest.mark.parametrize(
     ("experiment", "expected_group"),
     [
-        ("sem_embeds_inference", "sem_embeds"),
-        ("rkmeans_train", "rkmeans"),
-        ("rkmeans_inference", "rkmeans"),
-        ("rvq_train", "rvq"),
-        ("rvq_inference", "rvq"),
-        ("rqvae_train", "rqvae"),
-        ("rqvae_inference", "rqvae"),
+        ("sem_embeds_inference", "sem_embeds_main"),
+        ("rkmeans_train", "rkmeans_main"),
+        ("rkmeans_inference", "rkmeans_main"),
+        ("rvq_train", "rvq_main"),
+        ("rvq_inference", "rvq_main"),
+        ("rqvae_train", "rqvae_main"),
+        ("rqvae_inference", "rqvae_main"),
     ],
 )
 def test_fixed_pipeline_experiments_use_expected_wandb_group(experiment, expected_group):
@@ -93,15 +93,16 @@ def test_fixed_pipeline_experiments_use_expected_wandb_group(experiment, expecte
 
 @pytest.mark.parametrize("experiment", sorted(DYNAMIC_GROUP_EXPERIMENTS))
 @pytest.mark.parametrize("group", ["rkmeans", "rvq", "rqvae"])
-def test_downstream_experiments_use_explicit_quantization_group(experiment, group):
-    cfg = _compose_experiment(experiment, [f"group={group}"])
+def test_downstream_experiments_separate_quantizer_and_display_group(experiment, group):
+    cfg = _compose_experiment(experiment, [f"sid_type={group}"])
 
-    assert cfg.group == group
-    assert cfg.logger.wandb.group == group
+    expected = "tiger_main" if experiment in ("tiger_train", "tiger_inference") else "mechanism_main"
+    assert cfg.sid_type == group
+    assert cfg.group == cfg.logger.wandb.group == expected
 
 
 @pytest.mark.parametrize("experiment", sorted(DYNAMIC_GROUP_EXPERIMENTS))
-def test_downstream_experiments_require_group(experiment):
+def test_downstream_experiments_require_quantizer(experiment):
     with initialize(version_base=None, config_path="../configs"):
         cfg = compose(
             config_name="main",
@@ -116,9 +117,9 @@ def test_downstream_experiments_require_group(experiment):
             ],
         )
 
-    assert OmegaConf.is_missing(cfg, "group")
+    assert OmegaConf.is_missing(cfg, "sid_type")
     with pytest.raises(MissingMandatoryValue):
-        _ = cfg.group
+        _ = cfg.sid_type
 
 
 @pytest.mark.parametrize(
@@ -137,10 +138,10 @@ def test_downstream_experiments_require_group(experiment):
         "tiger_prefix_trace",
     ],
 )
-def test_wandb_run_name_contains_task_name_and_timestamp(experiment):
+def test_wandb_run_name_contains_display_name_and_timestamp(experiment):
     cfg = _compose_experiment(experiment)
 
-    expected_name = rf"{re.escape(cfg.task_name)}/\d{{4}}-\d{{2}}-\d{{2}}_\d{{2}}-\d{{2}}-\d{{2}}"
+    expected_name = rf"{re.escape(cfg.run_display_name)}/\d{{4}}-\d{{2}}-\d{{2}}_\d{{2}}-\d{{2}}-\d{{2}}"
     assert re.fullmatch(expected_name, cfg.logger.wandb.name)
 
 

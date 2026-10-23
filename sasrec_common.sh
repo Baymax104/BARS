@@ -12,7 +12,7 @@ sasrec_launch() {
   local mode="$1"
   shift
   local data_dir="" catalog_path="" dataset_name="" checkpoint="" notes=""
-  local seed="42" devices="${DEVICES:-[0]}" group="${WANDB_GROUP:-sasrec}"
+  local seed="42" devices="${DEVICES:-[0]}" group="${WANDB_GROUP:-sasrec_main}"
   local master_port="${MASTER_PORT:-29500}" nproc="${NPROC_PER_NODE:-}" dry_run=false
   local option value
   local -a extra_args=() device_ids=() command=() overrides=()

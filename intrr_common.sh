@@ -22,7 +22,7 @@ intrr_main() {
   local mode="$1"
   shift
   local processes devices port data_dir="" sid="" quantizer="" checkpoint=""
-  local notes="" seed=42 wandb_group=intrr dry_run=false option value
+  local notes="" seed=42 wandb_group=intrr_main dry_run=false option value
   local -a extra=() args=()
   if [[ "$mode" == train ]]; then
     processes="${NPROC_PER_NODE:-2}"

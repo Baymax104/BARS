@@ -13,14 +13,18 @@ from test_liger import batch
 from src.data.components.data_models import ModelOutput, TigerLabelData
 from src.recommendation.copmrec.mechanism import (
     ARMS,
+    CURRENT_VARIANT,
+    LEGACY_MECHANISM_PROTOCOL,
     MECHANISM_PROTOCOL,
     CoPMRecMechanismDiagnosis,
     candidate_decoder_scores,
 )
 
 
-def setup_diagnosis(**overrides):
-    original, checkpoint = snapshot("untied_residual")
+def setup_diagnosis(variant=CURRENT_VARIANT, model_options=None, **overrides):
+    source_options = {"validation_selection_mode": "hybrid"} if variant == CURRENT_VARIANT else {}
+    source_options.update(model_options or {})
+    original, checkpoint = snapshot(variant, **source_options)
     original.eval()
     x, _ = batch()
     predictions = original.retrieve(x)[0]
@@ -33,14 +37,14 @@ def setup_diagnosis(**overrides):
         },
     )
     arguments = dict(
-        backbone=copmrec("untied_residual"),
+        backbone=copmrec(variant, **source_options),
         checkpoint=checkpoint,
         reference_predictions=reference,
         source_reference="toy-own-best.ckpt",
         source_sha256="a" * 64,
         prediction_reference="toy-frozen-predictions.pt",
-        generation_candidates=3,
-        top_k=3,
+        generation_candidates=original.generation_candidates,
+        top_k=original.top_k,
         bootstrap_repetitions=12,
         candidate_score_batch_size=2,
     )
@@ -63,7 +67,8 @@ def test_two_searches_four_arms_reproduce_production_and_do_not_mutate_checkpoin
     ) as generate:
         diagnosis.test_step(batch(), 0)
     assert generate.call_count == 2
-    assert generate.call_args_list[0].kwargs["processor"].gate is diagnosis.backbone.dynamic_gate
+    production = generate.call_args_list[0].kwargs["processor"]
+    assert production.gate is None and production.alpha == 0.5
     endpoint = generate.call_args_list[1].kwargs["processor"]
     assert endpoint.alpha == 0 and endpoint.gate is None
     payload = diagnosis.structured_analysis_output()
@@ -72,8 +77,16 @@ def test_two_searches_four_arms_reproduce_production_and_do_not_mutate_checkpoin
     assert payload.metadata["evidence_kind"] == "fixed_checkpoint_intervention"
     assert payload.metadata["production_reproduced"]
     assert payload.metadata["prediction_sha256"] == "b" * 64
+    assert payload.metadata["source_variant"] == CURRENT_VARIANT
+    assert payload.metadata["source_alpha"] == payload.metadata["fixed_mixture_alpha"] == 0.5
+    assert payload.metadata["alpha_policy"] == "frozen_0.5"
+    assert "learned_alpha" not in payload.metadata
+    assert payload.metadata["source_training_contract"]["training_validation"] == "hybrid_beam_plus_all_cold"
+    assert payload.metadata["source_training_contract"]["loss_weights"] == {
+        "sid_ce": 1, "joint_catalog_ce": 1, "mixture_nll": 0
+    }
     assert set(payload.bundles) == {f"{arm}.pt" for arm in (*ARMS, "dense_catalog")}
-    torch.testing.assert_close(payload.bundles["learned_catalog.pt"]["predictions"], reference.predictions)
+    torch.testing.assert_close(payload.bundles["production_catalog.pt"]["predictions"], reference.predictions)
     for name, value in diagnosis.backbone.state_dict().items():
         torch.testing.assert_close(value, saved[name], rtol=0, atol=0)
     assert not any(parameter.requires_grad for parameter in diagnosis.backbone.parameters())
@@ -108,7 +121,7 @@ def test_fixed_pools_include_all_cold_and_both_rankers_share_the_same_candidates
     start(diagnosis)
     generated = (torch.tensor([[0, 0, -1], [1, 2, 2]]), torch.tensor([[1, 2, -1], [0, 1, -1]]))
     logits = torch.tensor([[3.0, 99.0, 1.0, 1.0, 3.0, 3.0], [0.0, 6.0, 99.0, 1.0, 8.0, 7.0]])
-    # production learned pool: 用户0=[0,4,5]，用户1=[1,2,4,5]。
+    # production pool: 用户0=[0,4,5]，用户1=[1,2,4,5]。
     reference.predictions = diagnosis.backbone.semantic_ids[torch.tensor([[0, 4, 5], [2, 4, 5]])]
     observed = {}
 
@@ -125,16 +138,16 @@ def test_fixed_pools_include_all_cold_and_both_rankers_share_the_same_candidates
         diagnosis.test_step(batch(), 0)
     assert all((user, cold) in observed["pairs"] for user in (0, 1) for cold in (4, 5))
     rows = {arm: [row for row in diagnosis.rows if row["variant"] == arm] for arm in ARMS}
-    for generation in ("learned", "alpha0"):
+    for generation in ("production", "alpha0"):
         for left, right in zip(rows[f"{generation}_catalog"], rows[f"{generation}_decoder"], strict=True):
             assert left["candidate_count"] == right["candidate_count"]
             assert left["target_covered"] == right["target_covered"]
             assert left["target_generated"] == right["target_generated"]
-    assert rows["learned_catalog"][0]["candidate_count"] == 3
-    assert rows["learned_catalog"][0]["invalid_generated_count"] == 1
-    assert not rows["learned_catalog"][0]["target_generated"]
+    assert rows["production_catalog"][0]["candidate_count"] == 3
+    assert rows["production_catalog"][0]["invalid_generated_count"] == 1
+    assert not rows["production_catalog"][0]["target_generated"]
     # 高分未生成 seen 行1没有混入用户0的候选。
-    actual_rows = diagnosis.backbone.lookup_rows(torch.cat(diagnosis.predictions["learned_catalog"]))
+    actual_rows = diagnosis.backbone.lookup_rows(torch.cat(diagnosis.predictions["production_catalog"]))
     assert actual_rows[0].tolist() == [0, 4, 5]
     comparisons = diagnosis.structured_analysis_output().documents["summary.json"]["comparisons"]
     expected_difference = -0.5 / np.log2(3)
@@ -173,7 +186,7 @@ def test_statistics_pair_same_users_and_ndcg_contributions_sum_to_differences():
     for name in (
         "generation_at_catalog",
         "generation_at_decoder",
-        "ranking_at_learned",
+        "ranking_at_production",
         "ranking_at_alpha0",
         "both_at_production",
     ):
@@ -209,7 +222,7 @@ def test_reference_reproduction_and_exact_user_population_are_required(fault):
         diagnosis.structured_analysis_output()
 
 
-@pytest.mark.parametrize("fault", ["shared", "missing_table", "seed", "deployment", "sha", "budget"])
+@pytest.mark.parametrize("fault", ["shared", "missing_table", "seed", "deployment", "sha", "budget", "dense_source"])
 def test_wrong_source_or_deployment_is_rejected(fault):
     _, original, checkpoint, reference = setup_diagnosis()
     arguments = {}
@@ -219,12 +232,14 @@ def test_wrong_source_or_deployment_is_rejected(fault):
         del checkpoint["state_dict"]["history_collaborative_residual.weight"]
         arguments["checkpoint"] = checkpoint
     elif fault == "seed":
-        arguments["backbone"] = copmrec("untied_residual", initialization_seed=43)
+        arguments["backbone"] = copmrec(CURRENT_VARIANT, validation_selection_mode="hybrid", initialization_seed=43)
     elif fault == "deployment":
         reference.auxiliary["deployment_contract"] = {**original.deployment_contract, "history_exclusion": True}
         arguments["reference_predictions"] = reference
     elif fault == "sha":
         arguments["source_sha256"] = "wrong"
+    elif fault == "dense_source":
+        arguments["backbone"] = copmrec(CURRENT_VARIANT)
     else:
         arguments["generation_candidates"] = 20
     with pytest.raises((ValueError, RuntimeError)):
@@ -252,3 +267,49 @@ def test_multi_process_and_invalid_batch_are_rejected():
 def test_preprocessing_depth_and_stage_scope_must_match(options):
     with pytest.raises(ValueError, match="depths|Beauty/seed42"):
         setup_diagnosis(**options)
+
+
+def test_explicit_historical_source_keeps_learned_gate_and_original_protocol():
+    diagnosis, _, _, reference = setup_diagnosis(variant="untied_residual")
+    start(diagnosis)
+    with patch.object(
+        diagnosis.backbone, "_generate_candidate_rows", wraps=diagnosis.backbone._generate_candidate_rows
+    ) as generate:
+        diagnosis.test_step(batch(), 0)
+    assert generate.call_count == 2
+    assert generate.call_args_list[0].kwargs["processor"].gate is diagnosis.backbone.dynamic_gate
+    output = diagnosis.structured_analysis_output()
+    assert output.metadata["protocol"] == LEGACY_MECHANISM_PROTOCOL
+    assert output.metadata["reference_arm"] == "learned_catalog"
+    assert output.metadata["source_variant"] == "untied_residual"
+    assert output.metadata["alpha_policy"] == "learned"
+    assert output.metadata["fixed_mixture_alpha"] is None
+    assert output.metadata["learned_alpha"] == output.metadata["source_alpha"]
+    torch.testing.assert_close(output.bundles["learned_catalog.pt"]["predictions"], reference.predictions, rtol=0, atol=0)
+
+
+def test_current_full_beam20_top10_is_reproduced_exactly_for_each_business_user():
+    sids = torch.cartesian_prod(torch.arange(5), torch.arange(5))
+    options = dict(
+        catalog=dict(
+            keys=torch.arange(25) + 100,
+            semantic_ids=sids,
+            embeddings=torch.arange(125).reshape(25, 5).float() / 125,
+            seen_mask=torch.arange(25) < 20,
+        ),
+        codebook_size=5,
+        generation_candidates=20,
+        top_k=10,
+    )
+    diagnosis, _, checkpoint, reference = setup_diagnosis(model_options=options)
+    saved = copy.deepcopy(checkpoint["state_dict"])
+    start(diagnosis)
+    diagnosis.test_step(batch(), 0)
+    output = diagnosis.structured_analysis_output()
+    production = output.bundles["production_catalog.pt"]
+    assert production["predictions"].shape == (2, 10, 2)
+    assert torch.equal(production["keys"], reference.keys)
+    assert torch.equal(production["predictions"], reference.predictions)
+    assert output.metadata["generation_candidates"] == 20 and output.metadata["top_k"] == 10
+    for name, value in diagnosis.backbone.state_dict().items():
+        assert torch.equal(value, saved[name])

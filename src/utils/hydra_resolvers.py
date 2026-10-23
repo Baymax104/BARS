@@ -14,6 +14,12 @@ def now_of_timezone(pattern: str, timezone: str = "Asia/Shanghai") -> str:
     return datetime.now(tz).strftime(pattern)
 
 
+def dataset_slug(path: str) -> str:
+    """从两类平台路径提取仅用于显示名称的数据集名。"""
+    return str(path).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+
+
 # resolvers need to be registered to be accessible during config composition.
 # The resolver name is the function name without the type annotations.
 OmegaConf.register_new_resolver("now_tz", now_of_timezone)
+OmegaConf.register_new_resolver("dataset_slug", dataset_slug)

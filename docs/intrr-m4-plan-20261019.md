@@ -1,5 +1,9 @@
 # IntRR M4 实验计划
 
+> 最终完成更新（2026-10-20）：Toys三seed各完成自身best全量Testing及独立验收，Beauty／Sports／Toys × seeds42／200／2026完整矩阵9/9完成。累计9训练／450k＋9Testing，剩余训练与Testing均0，训练重试0；原Beauty42复用，新增八格沿用原400k预算。逐格四指标、三seed均值与样本标准差及全部来源见[最终结果报告](intrr-m4-results-20261020.md)。下方6/9、3/9及最初计划保留历史时点含义。
+
+> Sports执行更新（2026-10-20）：用户要求将已完成训练进行下一步。Sports42／200／2026均核准50k、500次验证、首次自身best及checkpoint身份后，各完成一次全量Testing并独立验收；Beauty与Sports共6/9格Done。Sports NDCG@10 mean±sample std为0.01439775±0.00063336（ddof=1），见[Sports三seed报告](intrr-sports-three-seed-results-20261020.md)。Toys42仍在GPU4/5训练，另两格排队，原训练与预算保持。下方3/9回执保留此前时点含义。
+
 > 最新执行更新（2026-10-20）：用户要求训练完成后继续。Beauty200／2026已分别以自身best49,900／47,300完成一次全量Testing并独立验收，复用Beauty42后Beauty三seed Done，完整矩阵3/9。Sports／Toys六格此前在起训前因七份无关BARS配置导致全局source hash变化而停止；核准IntRR依赖不变、61项检查通过并保留失败记录后，原GPU4/5训练队列已恢复，Sports42训练、其余五格排队，无训练重试或额外训练格。Beauty结果与全部证据见[三seed报告](intrr-beauty-three-seed-results-20261020.md)；下方旧启动记录保留时点含义。
 
 > 当前启动更新（2026-10-19）：BMX-205机制已Done，用户随后明确要求“在node1上启动intrr训练，使用tmux启动”，覆盖此前Backlog／Low暂停决定。剩余八格已提交独立tmux／GPU0/7串行DDP队列，当前Beauty200／BMX-197运行，其余七格等待前驱成功结束；父项BMX-195与首格为In Progress，其余为Todo。首格200步checkpoint／Adam更新、双rank与来源核验通过；本次仅训练，关闭自动Testing。Beauty42/BMX-196 Done与原预算保持。实际身份、启动核验及完整原始记录见[启动回执](evidence/intrr-m4-launch-20261019/README.md)。下文保留初始计划口径，实时执行状态以上述回执及研究状态为准。

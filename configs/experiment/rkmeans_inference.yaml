@@ -8,6 +8,7 @@ defaults:
 - /trainer@trainer: rkmeans_inference
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 embedding_path: ???
 codebook_size: 256
 num_hierarchies: 3
@@ -20,8 +21,9 @@ run_mode: inference
 project: GRID
 user: baymaxam
 task_name: rkmeans_inference
+run_display_name: rkmeans_${display_dataset_name}_seed${seed}_sid_export
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
-group: rkmeans
+group: rkmeans_main
 
 seed: 42
 paths:

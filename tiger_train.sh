@@ -176,7 +176,7 @@ esac
 
 ARGS=(
   experiment=tiger_train
-  group="$GROUP"
+  sid_type="$GROUP"
   devices="$DEVICES"
   "semantic_id_path=$(quote_hydra_string "$SEMANTIC_ID_PATH")"
   data_dir="$DATA_DIR"
@@ -186,7 +186,7 @@ ARGS=(
 ARGS+=("logger.wandb.notes=$(quote_hydra_string "$NOTES")")
 
 if [[ -n "$WANDB_GROUP" ]]; then
-  ARGS+=("group=$WANDB_GROUP")
+  ARGS+=("group=$(quote_hydra_string "$WANDB_GROUP")")
 fi
 
 if [[ "$DRY_RUN" == true ]]; then

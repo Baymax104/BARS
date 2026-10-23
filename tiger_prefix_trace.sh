@@ -96,7 +96,7 @@ fi
 
 ARGS=(
   experiment=tiger_prefix_trace
-  group="$GROUP"
+  sid_type="$GROUP"
   data_dir="$DATA_DIR"
   data_split="$DATA_SPLIT"
   beam_width="$BEAM_WIDTH"

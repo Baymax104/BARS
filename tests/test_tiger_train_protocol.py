@@ -21,7 +21,7 @@ def test_tiger_paper_training_protocol():
                 "data_dir=data/beauty",
                 "semantic_id_path=semantic-id.pt",
                 "devices=[0,1]",
-                "group=rkmeans",
+                "sid_type=rkmeans",
                 "seed=42",
             ],
         )

@@ -8,7 +8,13 @@ import torch
 from copmrec_fixtures import copmrec, snapshot
 from test_liger import batch
 
-from src.recommendation.copmrec.ablation import TRAINING_VARIANTS, VARIANTS
+from src.recommendation.copmrec.ablation import (
+    NO_JOINT_CE_VARIANTS,
+    NO_MIXTURE_VARIANTS,
+    NO_RESIDUAL_VARIANTS,
+    TRAINING_VARIANTS,
+    VARIANTS,
+)
 from src.recommendation.copmrec.diagnosis import CoPMRecDiagnosis, prefix_observations
 
 
@@ -33,24 +39,27 @@ def test_loss_is_exactly_the_declared_active_terms_and_disabled_parameters_stay_
     actual = copmrec(variant)
     values = actual.losses(batch()[0], batch()[1].target_ids, training=True)
     terms = ["sid_loss"]
-    if variant not in {"no_joint_ce", "untied_no_joint_ce"}:
+    if variant not in NO_JOINT_CE_VARIANTS:
         terms.append("content_loss")
-    if variant != "no_mixture":
+    if variant not in NO_MIXTURE_VARIANTS:
         terms.append("mixture_loss")
     torch.testing.assert_close(values["loss"], sum(values[x] for x in terms))
     assert "native_view_ce_loss" not in values
     values["loss"].backward()
-    if variant == "no_mixture":
+    if variant in NO_MIXTURE_VARIANTS:
         assert actual.dynamic_gate.bias.grad is None and actual.dynamic_gate.bias.sigmoid().item() == 0.5
     if variant == "fixed_alpha_one":
         assert actual.dynamic_gate.bias.grad is None and values["mixture_alpha"].item() == 1.0
-    if variant == "no_residual":
+    if variant in NO_RESIDUAL_VARIANTS:
         assert actual.collaborative_residual.weight.grad is None
         assert torch.count_nonzero(actual.item_content_residual(torch.arange(6))) == 0
         assert len(actual.configure_optimizers()["optimizer"].param_groups) == 1
     else:
         gradient = actual.collaborative_residual.weight.grad
-        assert gradient[actual.seen_mask].abs().sum() > 0
+        if variant == "untied_fixed_alpha_half_no_joint_ce_no_mixture":
+            assert not torch.count_nonzero(gradient)
+        else:
+            assert gradient[actual.seen_mask].abs().sum() > 0
         assert torch.count_nonzero(gradient[~actual.seen_mask]) == 0
 
 

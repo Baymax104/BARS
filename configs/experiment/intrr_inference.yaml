@@ -7,6 +7,7 @@ defaults:
 - /trainer@trainer: tiger_inference
 
 data_dir: ???
+display_dataset_name: ${oc.select:dataset_name,${dataset_slug:${data_dir}}}
 semantic_id_path: ???
 ckpt_path: ???
 num_hierarchies: 4
@@ -17,9 +18,10 @@ seed: 42
 
 run_mode: inference
 task_name: intrr_inference
+run_display_name: intrr_${display_dataset_name}_seed${seed}_${sid_type}_test
 project: GRID
 user: baymaxam
-group: intrr
+group: intrr_main
 sid_type: ???
 id: ${now_tz:%Y-%m-%d}/${now_tz:%H-%M-%S}
 upstream_commit: 806e0f1969ed61a0748902649b335c0ea066de00

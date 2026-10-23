@@ -8,7 +8,8 @@ structured_analysis:
   metadata:
     protocol: ${m3_protocol}
     analysis: ${analysis_kind}
-    method_role: untied_main
+    method_role: bars_full_analysis
+    source_variant: ${analysis_source_variant}
     dataset: ${dataset_name}
     training_seed: ${seed}
     new_training_updates: 0
