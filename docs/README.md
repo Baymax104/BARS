@@ -4,7 +4,13 @@
 
 ## 当前入口
 
-- [BARS 方法与运行入口](copmrec-versions.md)：固定 alpha=0.5、两损失 Untied 主方法、hybrid 选点和匹配消融入口。
+- [2026-10-25 归档与提交记录](repository-cleanup-20261025.md)：过时链路清理、BARS 命名迁移及正式规格合并。
+
+- [BARS 工程命名迁移](bars-engineering-rename-20261025.md)：模块、类、Hydra、脚本与测试统一命名，历史序列化身份保留。
+
+- [2026-10-25 代码清理](code-cleanup-20261025.md)：删除 Tail-SID、TIGER 前缀追踪与候选槽位干预链路，保留正式方法与证据。
+
+- [BARS 方法与运行入口](bars-versions.md)：固定 alpha=0.5、两损失 Untied 主方法、hybrid 选点和匹配消融入口。
 - [当前 BARS M2 九格结果](bars-hybrid-m2-results-20261023.md)：三数据集三 seed 的 hybrid Validation／own-best Testing 独立验收。
 - [当前 BARS M3 结果](bars-current-method-m3-results-20261023.md)与[阶段计划](bars-current-method-m3-plan-20261023.md)：Beauty42 匹配消融、生成／排序干预和冻结预测贡献分析。
 - [历史 learned-alpha M3](bars-untied-mechanism-results-20261019.md)：保留三损失与 dense 选点的原始证据范围。

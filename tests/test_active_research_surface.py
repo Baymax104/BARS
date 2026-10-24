@@ -1,8 +1,18 @@
 from pathlib import Path
 
+import pytest
+from hydra import compose, initialize_config_dir
+from hydra.errors import MissingConfigException
+
 ROOT = Path(__file__).parents[1]
 
 RETIRED_MODULE_PREFIXES = (
+    "src.quantization.tail_sid_diagnosis",
+    "src.recommendation.tiger.prefix_allocation",
+    "src.data.components.prefix_trace",
+    "src.data.catalog_diagnosis",
+    "src.data.datamodule.diagnosis",
+    "src.data.datamodule.tiger_trace",
     "src.recommendation.brir",
     "src.recommendation.tiger_catalog_grounded",
     "src.recommendation.tiger_item_resolution",
@@ -18,6 +28,9 @@ RETIRED_MODULE_PREFIXES = (
 )
 
 RETIRED_LAUNCHERS = (
+    "tail_sid_diagnosis",
+    "tiger_prefix_trace",
+    "tiger_prefix_allocation_probe",
     "brir",
     "tiger_catalog_grounded",
     "tiger_item_resolution",
@@ -42,12 +55,9 @@ def _active_text_files():
 
 
 def test_recommendation_packages_only_expose_current_methods():
-    packages = {
-        path.parent.name
-        for path in (ROOT / "src" / "recommendation").glob("*/__init__.py")
-    }
+    packages = {path.parent.name for path in (ROOT / "src" / "recommendation").glob("*/__init__.py")}
 
-    assert packages == {"copmrec", "intrr", "letter", "liger", "sasrec", "tiger"}
+    assert packages == {"bars", "intrr", "letter", "liger", "sasrec", "tiger"}
 
 
 def test_active_surface_has_no_retired_imports_or_hydra_targets():
@@ -72,3 +82,22 @@ def test_retired_launchers_and_configs_are_absent():
 
     violations = [path for path in active_paths if any(name in path for name in RETIRED_LAUNCHERS)]
     assert violations == []
+
+
+@pytest.mark.parametrize("experiment", ["tail_sid_diagnosis", "tiger_prefix_trace", "tiger_prefix_allocation_probe"])
+def test_retired_analysis_experiments_cannot_compose(experiment):
+    with initialize_config_dir(config_dir=str(ROOT / "configs"), version_base="1.3"):
+        with pytest.raises(MissingConfigException, match=experiment):
+            compose(config_name="main", overrides=[f"experiment={experiment}"])
+
+
+def test_retired_analysis_modules_are_absent():
+    modules = (
+        "src/quantization/tail_sid_diagnosis/module.py",
+        "src/recommendation/tiger/prefix_allocation.py",
+        "src/data/components/prefix_trace.py",
+        "src/data/catalog_diagnosis.py",
+        "src/data/datamodule/diagnosis.py",
+        "src/data/datamodule/tiger_trace.py",
+    )
+    assert all(not (ROOT / name).exists() for name in modules)

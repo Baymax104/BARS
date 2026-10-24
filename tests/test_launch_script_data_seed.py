@@ -17,8 +17,6 @@ SCRIPT_NAMES = [
     "rqvae_inference.sh",
     "tiger_train.sh",
     "tiger_inference.sh",
-    "tiger_prefix_trace.sh",
-    "tail_sid_diagnosis.sh",
 ]
 REQUIRED_ARGUMENTS = {
     "sem_embeds_inference.sh": [],
@@ -56,30 +54,6 @@ REQUIRED_ARGUMENTS = {
         "semantic.pt",
         "--ckpt-path",
         "model.ckpt",
-        "--group",
-        "rvq",
-    ],
-    "tiger_prefix_trace.sh": [
-        "--data-split",
-        "evaluation",
-        "--beam-width",
-        "10",
-        "--devices",
-        "[0]",
-        "--semantic-id-path",
-        "semantic.pt",
-        "--ckpt-path",
-        "model.ckpt",
-        "--notes",
-        "trace",
-        "--group",
-        "rvq",
-    ],
-    "tail_sid_diagnosis.sh": [
-        "--semantic-id-path",
-        "semantic.pt",
-        "--notes",
-        "diagnosis",
         "--group",
         "rvq",
     ],
@@ -150,10 +124,7 @@ def test_quantizer_embedding_survives_shell_and_hydra(script_name, equals_form, 
 def _instrument_script(script_name: str, tmp_path: Path) -> Path:
     source = (PROJECT_ROOT / script_name).read_text(encoding="utf-8")
     print_args = "printf '%s\\n' \"${ARGS[@]}\"\n"
-    if script_name == "tail_sid_diagnosis.sh":
-        source = source.replace('uv run --module src.main "${ARGS[@]}"', print_args.rstrip())
-    else:
-        source = source[: source.index("OMP_NUM_THREADS=")] + print_args
+    source = source[: source.index("OMP_NUM_THREADS=")] + print_args
 
     instrumented = tmp_path / script_name
     instrumented.write_text(source, encoding="utf-8", newline="\n")

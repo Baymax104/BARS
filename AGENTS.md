@@ -16,7 +16,7 @@
 
 ## 上下文来源规范
 
-- 当前 BARS 主方法为 `untied_fixed_alpha_half_no_mixture`：历史／目录双残差表、固定 alpha=0.5，SID CE／Catalog CE／mixture NLL 权重为 1/1/0。使用 `copmrec_ablation_train.sh`／`copmrec_ablation_inference.sh` 并明确传入该 variant；裸 `copmrec_train.sh` 仍是历史 Shared 配方。
+- 当前 BARS 主方法为 `untied_fixed_alpha_half_no_mixture`：历史／目录双残差表、固定 alpha=0.5，SID CE／Catalog CE／mixture NLL 权重为 1/1/0。使用 `bars_ablation_train.sh`／`bars_ablation_inference.sh` 并明确传入该 variant；裸 `bars_train.sh` 仍是历史 Shared 配方。
 - 当前主方法及匹配 M3 变体使用 hybrid Validation：beam20 与全部 cold 商品并集、目录 logits 稳定 Top10、不排除历史商品；每500步按自身首次最高 `val/ndcg@10` 选点。旧变体保留 dense 契约，禁止跨选点协议恢复或混用 checkpoint。
 - 当前 M3 匹配变体为 `shared_fixed_alpha_half_no_mixture`、`no_residual_fixed_alpha_half_no_mixture`、`untied_fixed_alpha_half_no_joint_ce_no_mixture`，协议为 `bars-fixed-half-hybrid-m3-20261023-v1`。机制与贡献入口默认当前 Full；历史来源须显式指定并保留原身份。
 - W&B 默认按研究角色分组：主实验 `{method}_main`、消融 `ablation_main`、机制 `mechanism_main`；旧 learned-alpha 主变体归入 `history`。显示名不能替代实际来源核验；BARS 公共推理入口只接受 hybrid，显示阶段使用 `test`／`validation`。
@@ -53,7 +53,7 @@
 - 标准实验链路按职责划分为：语义向量生成、量化器训练、semantic ID 生成、推荐模型训练、推荐推理、诊断分析。
 - 上游产物传给下游时必须使用明确的配置字段，例如 `embedding_path`、`semantic_id_path`、`ckpt_path`。
 - 推理与中间产物读取必须遵守 model output bundle 协议：内容为 `{"keys": ..., "predictions": ...}`，不得假设是裸 tensor。
-- Tail-SID diagnosis 属于分析逻辑，应通过统一入口与 `Trainer.test` 执行；不要新增离线 runner 绕过主链路。
+- Tail-SID diagnosis、TIGER prefix trace 与 prefix allocation probe 已退役；不要恢复其专用入口。现存诊断与 BARS 机制／贡献分析继续通过统一入口与 `Trainer.test` 执行。
 
 ## 数据与产物契约
 

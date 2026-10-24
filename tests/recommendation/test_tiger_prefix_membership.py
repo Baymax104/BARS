@@ -2,13 +2,39 @@ import types
 
 import pytest
 import torch
-from test_tiger_prefix_trace import create_trace_tiger
+from transformers import T5Config, T5EncoderModel
+from transformers.models.t5.modeling_t5 import T5Stack
 
 from src.recommendation.tiger.decoder import TigerDecoder
+from src.recommendation.tiger.tiger import Tiger
+
+
+def create_tiger(beam_width=2):
+    encoder_config = T5Config(vocab_size=4, d_model=4, num_heads=2, d_ff=8, d_kv=2, num_layers=1)
+    decoder_config = T5Config(
+        vocab_size=4,
+        d_model=4,
+        num_heads=2,
+        d_ff=8,
+        d_kv=2,
+        num_layers=1,
+        is_decoder=True,
+        is_encoder_decoder=False,
+    )
+    return Tiger(
+        encoder=T5EncoderModel(encoder_config),
+        decoder=T5Stack(decoder_config),
+        semantic_ids=torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]]),
+        num_hierarchies=2,
+        codebook_size=4,
+        embedding_dim=4,
+        top_k_for_generation=beam_width,
+        should_check_prefix=True,
+    ).eval()
 
 
 def legacy_check(self, prefix, batch_size=100000):
-    return (self.semantic_ids.to(prefix.device)[:, None, :prefix.shape[1]] == prefix[None]).all(2).any(0)
+    return (self.semantic_ids.to(prefix.device)[:, None, : prefix.shape[1]] == prefix[None]).all(2).any(0)
 
 
 def make_decoder(catalog, radix):
@@ -23,21 +49,23 @@ def make_decoder(catalog, radix):
     return decoder
 
 
-@pytest.mark.parametrize('radix,depth', [(1, 4), (3, 5), (256, 4), (2, 63), (2, 64)])
+@pytest.mark.parametrize("radix,depth", [(1, 4), (3, 5), (256, 4), (2, 63), (2, 64)])
 def test_membership_matches_token_comparison(radix, depth):
     generator = torch.Generator().manual_seed(42)
     catalog = torch.randint(radix, (23, depth), generator=generator)
     catalog = torch.cat([catalog.flip(0), catalog[:3]])
     decoder = make_decoder(catalog, radix)
     for width in range(depth + 1):
-        candidates = torch.cat([
-            catalog[:7, :width],
-            torch.randint(-1, radix + 1, (31, width), generator=generator),
-        ])
+        candidates = torch.cat(
+            [
+                catalog[:7, :width],
+                torch.randint(-1, radix + 1, (31, width), generator=generator),
+            ]
+        )
         assert torch.equal(decoder._check_valid_prefix(candidates, batch_size=7), legacy_check(decoder, candidates))
 
 
-@pytest.mark.parametrize('catalog', [torch.empty(0, 2, dtype=torch.long), torch.tensor([[0, 1], [1, 0]])])
+@pytest.mark.parametrize("catalog", [torch.empty(0, 2, dtype=torch.long), torch.tensor([[0, 1], [1, 0]])])
 def test_empty_queries_and_catalog(catalog):
     decoder = make_decoder(catalog, 4)
     for width in (0, 1, 2):
@@ -49,7 +77,7 @@ def test_empty_queries_and_catalog(catalog):
 
 def test_invalid_tokens_do_not_alias_and_float_queries_preserve_comparison():
     decoder = make_decoder(torch.tensor([[1, 0], [0, 0]]), 4)
-    for query in (torch.tensor([[0, 4], [-1, 4], [1, 0]]), torch.tensor([[1., 0.], [1.5, 0.]])):
+    for query in (torch.tensor([[0, 4], [-1, 4], [1, 0]]), torch.tensor([[1.0, 0.0], [1.5, 0.0]])):
         assert torch.equal(decoder._check_valid_prefix(query), legacy_check(decoder, query))
     decoder.semantic_ids = torch.tensor([[0, 4], [-1, 4]])
     query = torch.tensor([[0, 4], [-1, 4], [1, 0], [0, 0]])
@@ -105,7 +133,7 @@ def test_inference_tensor_updates_without_version_counter():
 
 def test_checkpoint_and_full_generation_remain_identical():
     torch.manual_seed(7)
-    model = create_trace_tiger()
+    model = create_tiger()
     original_state = {key: value.clone() for key, value in model.state_dict().items()}
     inputs = torch.tensor([[0, 1], [1, 0], [0, 0]])
     mask = torch.ones_like(inputs)

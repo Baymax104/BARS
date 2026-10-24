@@ -1,7 +1,7 @@
 # copmrec-joint-only-formal Specification
 
 ## Purpose
-定义正式 CoPMRec 联合视图的三目标训练、全阶段无历史排除和严格版本身份，明确统一入口、固定日程及可核验来源，避免将历史 checkpoint 改标签作为新的正式训练。
+定义正式 BARS 联合视图的三目标训练、全阶段无历史排除和严格版本身份，明确统一入口、固定日程及可核验来源，避免将历史 checkpoint 改标签作为新的正式训练。
 ## Requirements
 ### Requirement: 正式联合视图训练目标
 

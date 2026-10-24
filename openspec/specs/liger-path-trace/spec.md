@@ -8,7 +8,7 @@
 
 ### Requirement: Noninterfering path observation
 
-系统 SHALL 默认关闭路径记录；在 LIGER 的 hybrid probability_mixture 与正式 CoPMRec v2 learned_mass 路径上启用后，MUST 不改变候选、预测或 checkpoint state_dict。目标标签 SHALL 仅用于观察，不参与候选选择或排序。
+系统 SHALL 默认关闭路径记录；在 LIGER 的 hybrid probability_mixture 与正式 BARS v2 learned_mass 路径上启用后，MUST 不改变候选、预测或 checkpoint state_dict。目标标签 SHALL 仅用于观察，不参与候选选择或排序。
 
 #### Scenario: Trace on and off
 

@@ -1,7 +1,6 @@
 import torch
 
 from src.data.components.data_models import (
-    DiagnosisBatch,
     ItemBatch,
     SASRecLabelData,
     SASRecModelInput,
@@ -125,9 +124,3 @@ def collate_fn_items(
         features[new_name] = field_value
 
     return ItemBatch(item_ids=item_ids, features=features)
-
-
-def collate_fn_single_diagnosis_batch(rows: list[DiagnosisBatch]) -> DiagnosisBatch:
-    if len(rows) != 1:
-        raise ValueError(f"Diagnosis dataloader expects one full analysis batch, got {len(rows)}.")
-    return rows[0]

@@ -5,7 +5,7 @@
 ## Requirements
 ### Requirement: BARS 显示名与稳定任务身份分离
 
-系统 SHALL 为现有 CoPMRec 训练、推理、消融和诊断 experiment 提供独立 `run_display_name`，通过 BARS logger 组件生成 `bars_*` 的 W&B name。既有 `task_name`、model/class、experiment、variant、protocol、Artifact 名称／引用及路径 MUST 保持原值。
+系统 SHALL 为现有 BARS 训练、推理、消融和诊断 experiment 提供独立 `run_display_name`，通过 BARS logger 组件生成 `bars_*` 的 W&B name。既有 `task_name`、model/class、experiment、variant、protocol、Artifact 名称／引用及路径 MUST 保持原值。
 
 #### Scenario: 运行默认 Shared 和 Untied 配置
 

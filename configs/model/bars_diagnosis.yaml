@@ -1,0 +1,51 @@
+# @package _global_
+hits_modes:
+  hybrid:
+    deployment_protocol: copmrec-hybrid-deployment-v1
+    evaluation_protocol: copmrec-hybrid-deployment-v1
+  dense:
+    deployment_protocol: null
+    evaluation_protocol: copmrec-v2-ablation-20261009-v1
+deployment_protocols:
+  hits: ${model.hits_modes.${hits_deployment_mode}.deployment_protocol}
+  residual: null
+  prefix: null
+evaluation_protocols:
+  hits: ${model.hits_modes.${hits_deployment_mode}.evaluation_protocol}
+  residual: copmrec-v2-ablation-20261009-v1
+  prefix: copmrec-v2-ablation-20261009-v1
+root:
+  _target_: src.recommendation.bars.diagnosis.BARSDiagnosis
+  backbone: ${diagnosis_backbone.root}
+  analysis: ${diagnosis_analysis}
+  frequencies:
+    _target_: src.data.utils.load_training_item_frequency_tensor
+    semantic_id_path: ${semantic_id_path}
+    training_data_dir: ${paths.data_dir}/training
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  checkpoint:
+    _target_: src.data.components.artifacts.load_m3_checkpoint
+    reference: ${ckpt_path}
+    sha256: ${checkpoint_sha256}
+    analysis: ${diagnosis_analysis}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  prediction_bundles:
+    _target_: src.data.components.artifacts.load_m3_prediction_bundles
+    paths: ${prediction_paths}
+    analysis: ${diagnosis_analysis}
+    expected_deployment_protocol: ${expected_deployment_protocol}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  source_reference: ${checkpoint_reference}
+  source_sha256: ${checkpoint_sha256}
+  input_references:
+    semantic_id: ${semantic_id_path}
+    content: ${embedding_path}
+    predictions: ${prediction_paths}
+    data_dir: ${paths.data_dir}
+  bootstrap_repetitions: 2000
+  num_hierarchies: ${num_hierarchies}
+training_model_config: null
+metrics: null

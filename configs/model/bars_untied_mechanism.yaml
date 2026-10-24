@@ -3,7 +3,7 @@ defaults:
 - bars_untied_analysis_common@_here_
 - _self_
 root:
-  _target_: src.recommendation.copmrec.mechanism.CoPMRecMechanismDiagnosis
+  _target_: src.recommendation.bars.mechanism.BARSMechanismDiagnosis
   backbone: ${diagnosis_backbone.root}
   checkpoint:
     _target_: src.data.components.artifacts.load_audited_checkpoint

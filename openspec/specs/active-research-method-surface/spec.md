@@ -1,10 +1,10 @@
 # active-research-method-surface Specification
 
 ## Purpose
-约束当前推荐方法、正式 CoPMRec 运行面及 checkpoint 身份边界，避免历史实现归档后重新成为活动要求。
+约束当前推荐方法、正式 BARS 运行面及 checkpoint 身份边界，避免历史实现归档后重新成为活动要求。
 ## Requirements
 ### Requirement: Repository SHALL expose only active research methods
-仓库的可执行 recommendation 方法 SHALL 限于 TIGER、LIGER、CoPMRec（BARS）、LETTER、SASRec 与 IntRR；已结题的 BRIR、MIR/item-resolution、CGBS/catalog-grounded 和 training probe SHALL NOT 保留可导入实现或 Hydra experiment 入口。
+仓库的可执行 recommendation 方法 SHALL 限于 TIGER、LIGER、BARS、LETTER、SASRec 与 IntRR；已结题的 BRIR、MIR/item-resolution、CGBS/catalog-grounded 和 training probe SHALL NOT 保留可导入实现或 Hydra experiment 入口。
 
 #### Scenario: Enumerate recommendation packages
 - **WHEN** 检查 `src/recommendation/` 下的可导入方法目录
@@ -14,12 +14,12 @@
 - **WHEN** 枚举 `configs/experiment/` 中的 recommendation 训练与推理入口
 - **THEN** 不得出现已结题方法的 experiment 配置
 
-### Requirement: CoPMRec SHALL retain its frozen mechanism surface
-CoPMRec SHALL 保留正式 v2 基础运行面及其历史 checkpoint 身份；当前 BARS 主方法 SHALL 使用 `untied_fixed_alpha_half_no_mixture`，固定 alpha=0.5、SID CE／Catalog CE／mixture NLL 权重1/1/0及 hybrid 选点，所有阶段不排除历史商品。消融入口 SHALL 支持已登记的独立变体和当前匹配 M3，严格保持各自协议；不得恢复已退役 native view、content-only 或 legal/max 专用入口。
+### Requirement: BARS SHALL retain its frozen mechanism surface
+BARS SHALL 保留正式 v2 基础运行面及其历史 checkpoint 身份；当前 BARS 主方法 SHALL 使用 `untied_fixed_alpha_half_no_mixture`，固定 alpha=0.5、SID CE／Catalog CE／mixture NLL 权重1/1/0及 hybrid 选点，所有阶段不排除历史商品。消融入口 SHALL 支持已登记的独立变体和当前匹配 M3，严格保持各自协议；不得恢复已退役 native view、content-only 或 legal/max 专用入口。
 
-#### Scenario: Instantiate CoPMRec main method
-- **WHEN** Hydra 装配 `copmrec_train` 或 `copmrec_inference`
-- **THEN** 使用 `src.recommendation.copmrec.CoPMRec` 和正式 v2 契约，保留合法 SID 树上的 learned mass probability mixture
+#### Scenario: Instantiate BARS main method
+- **WHEN** Hydra 装配 `bars_train` 或 `bars_inference`
+- **THEN** 使用 `src.recommendation.bars.BARS` 和正式 v2 契约，保留合法 SID 树上的 learned mass probability mixture
 
 #### Scenario: Reject retired mechanism controls
 - **WHEN** 调用方请求旧 `liger_joint_*` 入口或已淘汰的机制控制
@@ -27,9 +27,9 @@ CoPMRec SHALL 保留正式 v2 基础运行面及其历史 checkpoint 身份；�
 
 ### Requirement: Active checkpoints SHALL remain load-compatible
 
-清理与部署迁移 SHALL 保持当前 LIGER 与正式 CoPMRec v2 checkpoint 的输入身份检查和严格恢复；旧 CoPMRec 开发 checkpoint SHALL NOT 被改标签当作当前正式版本恢复。CoPMRec 的训练 checkpoint 身份 SHALL 与本次 hybrid/dense 部署契约分离，允许复用已有正式 own-best，不改写文件或放松目标、变体、seed、预算与完整状态校验。
+清理与部署迁移 SHALL 保持当前 LIGER 与正式 BARS v2 checkpoint 的输入身份检查和严格恢复；旧 BARS 开发 checkpoint SHALL NOT 被改标签当作当前正式版本恢复。BARS 的训练 checkpoint 身份 SHALL 与本次 hybrid/dense 部署契约分离，允许复用已有正式 own-best，不改写文件或放松目标、变体、seed、预算与完整状态校验。
 
-#### Scenario: Load current CoPMRec checkpoint state
+#### Scenario: Load current BARS checkpoint state
 
 - **WHEN** checkpoint 来自相同正式版本、损失契约、输入目录和验证选点协议
 - **THEN** 当前模型严格恢复状态，并在相同部署模式下保持预测一致；显式部署切换由独立契约标注，旧版本或身份不匹配的 checkpoint 被拒绝

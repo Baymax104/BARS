@@ -13,7 +13,6 @@ from lightning import LightningModule, Trainer
 
 from src.common.writers.base import BaseBufferedWriter
 from src.data.components.data_models import ModelOutput
-from src.data.components.prefix_trace import validate_prefix_trace_bundle
 from src.utils.decorators import retry
 from src.utils.distributed import distributed_barrier
 from src.utils.file import sync_file
@@ -38,7 +37,8 @@ class AuxiliaryTensorWriter(BaseBufferedWriter):
         role: str | None = None,
         aliases: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
-        validator=None,
+        *,
+        validator,
     ):
         super().__init__(flush_frequency=flush_frequency)
         self.output_dir = output_dir
@@ -50,7 +50,7 @@ class AuxiliaryTensorWriter(BaseBufferedWriter):
         self.role = role
         self.aliases = aliases or ["latest"]
         self.metadata = metadata or {}
-        self.validator = validator or validate_prefix_trace_bundle
+        self.validator = validator
         os.makedirs(self.output_dir, exist_ok=True)
         if publish_wandb and not all((artifact_name, artifact_type, role)):
             raise ValueError("W&B auxiliary publication requires artifact_name, artifact_type, and role.")

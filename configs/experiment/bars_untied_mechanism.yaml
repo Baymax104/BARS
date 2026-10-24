@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
 - bars_untied_contributions
-- /model@diagnosis_backbone: copmrec
+- /model@diagnosis_backbone: bars
 - override /model@model: bars_untied_mechanism
 - _self_
 analysis_kind: generation_ranking
@@ -9,7 +9,7 @@ ckpt_path: wandb://baymaxam/GRID/httwyhka?role=checkpoint&alias=v0&file=checkpoi
 checkpoint_sha256: f2ffd7939483c4e16fa9359a2a856865386d0823d6285321c53df1f1391ca4c9
 diagnosis_backbone:
   root:
-    _target_: src.recommendation.copmrec.ablation.CoPMRecAblation
+    _target_: src.recommendation.bars.ablation.BARSAblation
     variant: ${analysis_source_variant}
     validation_selection_mode: ${model.analysis_source_contracts.${analysis_source_variant}.validation_selection_mode}
     evaluation_mode: ${diagnosis_backbone.root.validation_selection_mode}

@@ -7,16 +7,13 @@ from omegaconf import MissingMandatoryValue, OmegaConf
 import src.utils.hydra_resolvers  # noqa: F401
 
 DYNAMIC_GROUP_EXPERIMENTS = {
-    "tail_sid_diagnosis",
     "tiger_train",
     "tiger_inference",
-    "tiger_prefix_trace",
 }
 
 
 def _compose_experiment(experiment: str, extra_overrides: list[str] | None = None):
     group_overrides = ["sid_type=rkmeans"] if experiment in DYNAMIC_GROUP_EXPERIMENTS else []
-    trace_overrides = ["data_split=evaluation", "beam_width=10"] if experiment == "tiger_prefix_trace" else []
     with initialize(version_base=None, config_path="../configs"):
         return compose(
             config_name="main",
@@ -28,7 +25,6 @@ def _compose_experiment(experiment: str, extra_overrides: list[str] | None = Non
                 "ckpt_path=null",
                 "++devices=[0,1]",
                 *group_overrides,
-                *trace_overrides,
                 *(extra_overrides or []),
             ],
         )
@@ -60,10 +56,8 @@ def test_wandb_loggers_use_experiment_user():
         "rvq_train",
         "rvq_inference",
         "sem_embeds_inference",
-        "tail_sid_diagnosis",
         "tiger_train",
         "tiger_inference",
-        "tiger_prefix_trace",
     ]:
         cfg = _compose_experiment(experiment)
 
@@ -96,7 +90,7 @@ def test_fixed_pipeline_experiments_use_expected_wandb_group(experiment, expecte
 def test_downstream_experiments_separate_quantizer_and_display_group(experiment, group):
     cfg = _compose_experiment(experiment, [f"sid_type={group}"])
 
-    expected = "tiger_main" if experiment in ("tiger_train", "tiger_inference") else "mechanism_main"
+    expected = "tiger_main"
     assert cfg.sid_type == group
     assert cfg.group == cfg.logger.wandb.group == expected
 
@@ -132,10 +126,8 @@ def test_downstream_experiments_require_quantizer(experiment):
         "rvq_train",
         "rvq_inference",
         "sem_embeds_inference",
-        "tail_sid_diagnosis",
         "tiger_train",
         "tiger_inference",
-        "tiger_prefix_trace",
     ],
 )
 def test_wandb_run_name_contains_display_name_and_timestamp(experiment):
@@ -162,7 +154,7 @@ def test_embedding_loader_configs_use_experiment_user():
 
 
 def test_tiger_semantic_id_loader_configs_use_experiment_user():
-    for experiment in ["tiger_train", "tiger_inference", "tiger_prefix_trace"]:
+    for experiment in ["tiger_train", "tiger_inference"]:
         cfg = _compose_experiment(experiment)
 
         assert cfg.model.root.semantic_ids.wandb_entity == cfg.user
@@ -196,24 +188,3 @@ def test_tiger_inference_uses_testing_last_item_holdout_preprocessing():
     assert cfg.data.collate.target_field_name == "target_ids"
     assert cfg.data.collate.output_key_field_name == "user_id"
     assert cfg.callbacks.tiger_prediction_metrics.top_ks == [5, 10]
-
-
-def test_diagnosis_artifact_inputs_use_experiment_user():
-    cfg = _compose_experiment("tail_sid_diagnosis")
-
-    assert cfg.data.test_dataloader.semantic_id_path == "wandb://02sid"
-    assert cfg.data.test_dataloader.embedding_path == "wandb://01mw1fez"
-    assert cfg.data.test_dataloader.recommendation_output_path is None
-    assert cfg.data.test_dataloader.wandb_entity == cfg.user
-    assert cfg.data.test_dataloader.wandb_project == cfg.project
-
-    cfg_without_embeddings = _compose_experiment("tail_sid_diagnosis", ["embedding_path=null"])
-
-    assert cfg_without_embeddings.data.test_dataloader.embedding_path is None
-    assert cfg_without_embeddings.data.test_dataloader.wandb_entity == cfg_without_embeddings.user
-    assert cfg_without_embeddings.data.test_dataloader.wandb_project == cfg_without_embeddings.project
-
-    cfg_with_recommendations = _compose_experiment(
-        "tail_sid_diagnosis", ["recommendation_output_path=wandb://03rec"]
-    )
-    assert cfg_with_recommendations.data.test_dataloader.recommendation_output_path == "wandb://03rec"

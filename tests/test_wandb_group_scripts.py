@@ -6,7 +6,7 @@ import pytest
 from hydra import compose, initialize_config_dir
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_NAMES = ["tiger_train.sh", "tiger_inference.sh", "tiger_prefix_trace.sh", "tail_sid_diagnosis.sh"]
+SCRIPT_NAMES = ["tiger_train.sh", "tiger_inference.sh"]
 BASE_ARGUMENTS = {
     "tiger_train.sh": [
         "--data-dir",
@@ -21,30 +21,6 @@ BASE_ARGUMENTS = {
         "data/test dataset",
         "--ckpt-path",
         "model.ckpt",
-        "--semantic-id-path",
-        "semantic.pt",
-    ],
-    "tiger_prefix_trace.sh": [
-        "--data-dir",
-        "data/test dataset",
-        "--data-split",
-        "evaluation",
-        "--beam-width",
-        "10",
-        "--devices",
-        "[0]",
-        "--notes",
-        "grouped trace",
-        "--ckpt-path",
-        "model.ckpt",
-        "--semantic-id-path",
-        "semantic.pt",
-    ],
-    "tail_sid_diagnosis.sh": [
-        "--data-dir",
-        "data/test dataset",
-        "--notes",
-        "grouped diagnosis",
         "--semantic-id-path",
         "semantic.pt",
     ],
@@ -78,10 +54,7 @@ BASH = _usable_bash()
 def _instrument_script(script_name: str, tmp_path: Path) -> Path:
     source = (PROJECT_ROOT / script_name).read_text(encoding="utf-8")
     print_args = "printf '%s\\n' \"${ARGS[@]}\"\n"
-    if script_name == "tail_sid_diagnosis.sh":
-        source = source.replace('uv run --module src.main "${ARGS[@]}"', print_args.rstrip())
-    else:
-        source = source[: source.index("OMP_NUM_THREADS=")] + print_args
+    source = source[: source.index("OMP_NUM_THREADS=")] + print_args
 
     instrumented = tmp_path / script_name
     instrumented.write_text(source, encoding="utf-8", newline="\n")
@@ -111,9 +84,7 @@ def test_grouped_scripts_have_valid_shell_syntax(script_name):
         (["--group", "rqvae"], "rqvae"),
     ],
 )
-def test_grouped_scripts_forward_group_and_trailing_overrides(
-    script_name, group_arguments, expected_group, tmp_path
-):
+def test_grouped_scripts_forward_group_and_trailing_overrides(script_name, group_arguments, expected_group, tmp_path):
     script = _instrument_script(script_name, tmp_path)
     result = subprocess.run(
         [
@@ -196,10 +167,7 @@ def test_tiger_scripts_override_wandb_group(script_name, equals, tmp_path):
 @pytest.mark.parametrize("script_name", ["tiger_train.sh", "tiger_inference.sh"])
 def test_tiger_scripts_quote_wandb_uri_overrides_for_hydra(script_name, tmp_path):
     script = _instrument_script(script_name, tmp_path)
-    semantic_id_uri = (
-        "wandb://baymaxam/GRID/dq77e3wo"
-        "?role=semantic_id&file=merged_predictions_tensor.pt"
-    )
+    semantic_id_uri = "wandb://baymaxam/GRID/dq77e3wo?role=semantic_id&file=merged_predictions_tensor.pt"
     arguments = [
         "--data-dir",
         "data/beauty",

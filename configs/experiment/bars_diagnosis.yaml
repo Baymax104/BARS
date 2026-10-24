@@ -1,0 +1,48 @@
+# @package _global_
+defaults:
+- liger_inference
+- /model@diagnosis_backbone: bars
+- override /data@data: bars_diagnosis
+- override /model@model: bars_diagnosis
+- override /callbacks@callbacks: bars_diagnosis
+- override /logger@logger: bars_inference
+- _self_
+run_mode: analysis
+diagnosis_analysis: ???
+diagnosis_variant: full
+m3_protocol: copmrec-v2-ablation-20261009-v1
+evidence_phase: mechanism
+group: mechanism_main
+task_name: bars_v2_${dataset_name}_seed${seed}_${diagnosis_analysis}_${diagnosis_variant}_diagnosis
+run_display_name: bars_v2_${dataset_name}_seed${seed}_shared_${diagnosis_variant}_${diagnosis_analysis}_analysis
+ckpt_path: null
+checkpoint_reference: ${ckpt_path}
+checkpoint_sha256: null
+prediction_paths: {}
+diagnosis_backbone:
+  root:
+    _target_: src.recommendation.bars.diagnosis.source_model
+    source_variant: ${diagnosis_variant}
+    prediction_mode: dense
+logger:
+  wandb:
+    notes: M3 固定来源单卡 Trainer.test；仅登记实证；不更新参数。
+    tags:
+    - bars-v2
+    - mechanism
+    - ${diagnosis_analysis}
+    - ${diagnosis_variant}
+source_snapshot:
+  enabled: true
+method_version: v2
+bars_version: v2
+hits_deployment_mode: hybrid
+expected_deployment_protocol: ${model.deployment_protocols.${diagnosis_analysis}}
+evaluation_protocol: ${model.evaluation_protocols.${diagnosis_analysis}}
+exclude_history: false
+model:
+  root:
+    exclude_history: ${exclude_history}
+    evaluation_protocol: ${evaluation_protocol}
+    method_version: ${method_version}
+    expected_deployment_protocol: ${expected_deployment_protocol}

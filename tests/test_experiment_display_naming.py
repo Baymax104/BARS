@@ -79,13 +79,13 @@ def test_method_group_and_stage_across_datasets_and_seeds(experiment, group, sta
 )
 @pytest.mark.parametrize("stage", ["train", "inference"])
 def test_bars_display_classification_preserves_task_and_contract(variant, group, label, stage):
-    experiment = "copmrec_" + ("ablation_" if variant else "") + stage
+    experiment = "bars_" + ("ablation_" if variant else "") + stage
     cfg = config(experiment, *([f"ablation_variant={variant}"] if variant else []))
     suffix = "train" if stage == "train" else "test"
     assert cfg.group == cfg.logger.wandb.group == group
     assert cfg.run_display_name == f"bars_v2_beauty_seed42_{label}_{suffix}"
-    assert cfg.task_name.startswith("copmrec_v2_beauty_seed42_")
-    assert cfg.method == "copmrec" and cfg.formal_release.protocol == "copmrec-formal-joint-only-v2-v1"
+    assert cfg.task_name.startswith("bars_v2_beauty_seed42_")
+    assert cfg.method == "bars" and cfg.formal_release.protocol == "copmrec-formal-joint-only-v2-v1"
     writer = cfg.callbacks.wandb_checkpoint_writer if stage == "train" else cfg.callbacks.wandb_artifact_writer
     assert writer.task_name == cfg.task_name
     assert writer.artifact_name.startswith(cfg.task_name + "-")
@@ -93,7 +93,7 @@ def test_bars_display_classification_preserves_task_and_contract(variant, group,
 
 def test_bars_validation_display_and_mechanism_override_remain_independent():
     cfg = config(
-        "copmrec_ablation_inference", "ablation_variant=untied_no_joint_ce",
+        "bars_ablation_inference", "ablation_variant=untied_no_joint_ce",
         "group=mechanism_main", "evaluation_split=validation",
     )
     assert cfg.logger.wandb.group == "mechanism_main"
@@ -102,9 +102,9 @@ def test_bars_validation_display_and_mechanism_override_remain_independent():
     assert cfg.evidence_phase == "ablation"
 
 
-@pytest.mark.parametrize("experiment", ["bars_untied_contributions", "bars_untied_mechanism", "copmrec_diagnosis"])
+@pytest.mark.parametrize("experiment", ["bars_untied_contributions", "bars_untied_mechanism", "bars_diagnosis"])
 def test_mechanism_display_defaults(experiment):
-    extra = ["diagnosis_analysis=hits"] if experiment == "copmrec_diagnosis" else []
+    extra = ["diagnosis_analysis=hits"] if experiment == "bars_diagnosis" else []
     cfg = config(experiment, *extra)
     assert cfg.group == cfg.logger.wandb.group == "mechanism_main"
     assert cfg.run_display_name.endswith("_analysis")

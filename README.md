@@ -2,7 +2,7 @@
 
 GRID 是利用商品内容开展生成式推荐研究的实验代码库，基于 PyTorch、Lightning 和 Hydra，将语义向量生成、量化、semantic ID（SID）生成、推荐训练、推理与诊断接入统一入口。
 
-当前可运行的推荐方法包括 **TIGER、LIGER、BARS（CoPMRec）、LETTER、SASRec 和 IntRR**。LIGER 等内容生成式推荐方法是主要比较对象；TIGER 同时提供基础架构与基础对照，SASRec 提供序列推荐对照。各方法在本仓库中的实现与协议以配置、脚本和对应说明为准。
+当前可运行的推荐方法包括 **TIGER、LIGER、BARS、LETTER、SASRec 和 IntRR**。LIGER 等内容生成式推荐方法是主要比较对象；TIGER 同时提供基础架构与基础对照，SASRec 提供序列推荐对照。各方法在本仓库中的实现与协议以配置、脚本和对应说明为准。
 
 ## 环境与安装
 
@@ -18,7 +18,7 @@ uv sync --locked
 
 所有命令均从仓库根目录执行。使用 W&B logger 前需配置相应账号与凭据；项目、分组和实验说明通过 `logger.wandb.project`、`logger.wandb.group`、`logger.wandb.notes` 设置。
 
-W&B 默认按研究角色分组：主实验使用 `{method}_main`（如 `bars_main`、`intrr_main`），消融使用 `ablation_main`，机制分析使用 `mechanism_main`。显示名区分方法、数据集、seed、变体和阶段；BARS 使用 `bars` 显示前缀，内部 `copmrec` 入口、checkpoint 和 Artifact 身份保持。旧 learned-alpha 主变体归入 `history`。显式显示组参数及尾随 Hydra override 可覆盖默认显示值，配置规则见 `configs/logger/bars_display.yaml`。
+W&B 默认按研究角色分组：主实验使用 `{method}_main`（如 `bars_main`、`intrr_main`），消融使用 `ablation_main`，机制分析使用 `mechanism_main`。显示名区分方法、数据集、seed、变体和阶段；BARS 工程入口与显示前缀统一使用 `bars`；已落盘的 checkpoint 协议字段和历史 Artifact 身份保持兼容。旧 learned-alpha 主变体归入 `history`。显式显示组参数及尾随 Hydra override 可覆盖默认显示值，配置规则见 `configs/logger/bars_display.yaml`。
 
 ## 目录与配置
 
@@ -44,10 +44,10 @@ Experiment 保持薄入口职责，最终行为由其 `defaults` 组合出的组
 | 商品语义向量生成 | `sem_embeds_inference` |
 | 量化器训练 | `rqvae_train`、`rvq_train`、`rkmeans_train` |
 | SID 生成 | `rqvae_inference`、`rvq_inference`、`rkmeans_inference` |
-| 推荐训练与推理 | `tiger_train/inference`、`liger_train/inference`、`copmrec_train/inference`、`letter_train/inference`、`sasrec_train/inference`、`intrr_train/inference` |
+| 推荐训练与推理 | `tiger_train/inference`、`liger_train/inference`、`bars_train/inference`、`letter_train/inference`、`sasrec_train/inference`、`intrr_train/inference` |
 | LETTER 前置链路 | `letter_cf_train` → `letter_cf_export` → `letter_tokenizer_train` → `letter_sid` |
-| 诊断分析 | `tail_sid_diagnosis`、`tiger_prefix_trace`、`tiger_prefix_allocation_probe`、`copmrec_diagnosis` |
-| CoPMRec 消融 | `copmrec_ablation_train`、`copmrec_ablation_inference` |
+| 诊断分析 | `bars_diagnosis` |
+| BARS 消融 | `bars_ablation_train`、`bars_ablation_inference` |
 | BARS Untied机制与贡献 | `bars_untied_contributions`、`bars_untied_mechanism`；共用 `bars_untied_mechanism.sh`，通过 `--analysis contributions` 或 `--analysis generation` 选择 |
 
 表中每个名称对应 `configs/experiment/<名称>.yaml`；BARS机制两项共用上述脚本，其他名称对应根目录 `<名称>.sh`，推荐训练和推理名称分别展开为 `_train` 与 `_inference`。LETTER 的前置链路具有独立输入契约，详见 [LETTER 实现](docs/letter.md)。
@@ -55,14 +55,16 @@ Experiment 保持薄入口职责，最终行为由其 `defaults` 组合出的组
 统一入口通过 `experiment=<名称>` 选择实验。先查看组合配置，无需加载真实数据或启动训练：
 
 ```powershell
-uv run -m src.main experiment=copmrec_train --cfg job
+uv run -m src.main experiment=bars_train --cfg job
 ```
 
 单进程使用 `uv run -m src.main experiment=<名称> ...`；多进程使用 `uv run torchrun --nproc_per_node=<N> -m src.main experiment=<名称> ...`。日常运行优先使用根目录脚本，让脚本完成参数校验与 Hydra 参数装配。
 
-训练与 diagnosis 脚本支持 `--dry-run`，并将其交给统一入口执行最小流程；它仍需有效数据和上游产物。查看配置使用 `--cfg job`。脚本支持 `--notes="..."` 和 `--notes "..."`，末尾追加的 Hydra override 可以覆盖默认值。不同方法的参数名称可能不同，请对照对应脚本。
+训练与现存 diagnosis 脚本支持 `--dry-run`，并将其交给统一入口执行最小流程；它仍需有效数据和上游产物。查看配置使用 `--cfg job`。脚本支持 `--notes="..."` 和 `--notes "..."`，末尾追加的 Hydra override 可以覆盖默认值。不同方法的参数名称可能不同，请对照对应脚本。
 
-## BARS（CoPMRec v2）运行示例
+Tail-SID、TIGER 前缀追踪及候选槽位干预链路已退役并删除，历史复现使用对应 Git 版本；清理范围见[代码清理记录](docs/code-cleanup-20261025.md)。
+
+## BARS v2运行示例
 
 当前主方法为 **BARS Untied，固定 alpha=0.5、移除 mixture NLL**，变体身份为 `untied_fixed_alpha_half_no_mixture`。历史侧和目录侧分别学习商品 residual，内容投影共享，SID CE／Catalog CE／mixture NLL 权重为 1/1/0。训练从头初始化，双 GPU、FP32、50,000 次 optimizer update；每500步使用 hybrid Validation，按自身首次最高 `val/ndcg@10` 选择 own-best，训练结束后不自动执行 Testing。
 
@@ -70,12 +72,12 @@ uv run -m src.main experiment=copmrec_train --cfg job
 
 据已保存的独立验收回执，[当前 M2 主矩阵](docs/bars-hybrid-m2-results-20261023.md)覆盖 Beauty／Sports／Toys × seed42／200／2026 共9/9格。[当前 Beauty42 M3](docs/bars-current-method-m3-results-20261023.md)的三个匹配消融、生成／排序机制及冻结预测贡献分析均已验收。IntRR 的[九格基线矩阵](docs/intrr-m4-results-20261020.md)也已完成。实验状态与预算仍由相邻 research 仓库管理；本页引用已有验收，不授权新增运行。
 
-旧 `untied_residual` 的 learned-alpha／三损失矩阵与旧 Shared 结果保留历史来源。裸 `copmrec_train/inference.sh` 使用历史 Shared 配方；当前匹配 Shared 消融需要明确指定 `shared_fixed_alpha_half_no_mixture`，不能直接复用旧配方。
+旧 `untied_residual` 的 learned-alpha／三损失矩阵与旧 Shared 结果保留历史来源。裸 `bars_train/inference.sh` 使用历史 Shared 配方；当前匹配 Shared 消融需要明确指定 `shared_fixed_alpha_half_no_mixture`，不能直接复用旧配方。
 
 以下 Bash 示例中的路径仅展示参数形式，需替换为实际数据、对齐后的 SID 和商品语义向量。运行脚本前先安装锁定环境；脚本默认设置 `UV_NO_SYNC=1`。
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
+CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash bars_ablation_train.sh \
   --variant untied_fixed_alpha_half_no_mixture \
   --data-dir data/beauty \
   --dataset beauty \
@@ -92,7 +94,7 @@ CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash copmrec_ablation_train.sh \
 独立推理固定该方法、数据集和 seed 对应的自身最佳 checkpoint，要求单进程及明确的 SHA256。先将 `CHECKPOINT_PATH` 和 `CHECKPOINT_SHA256` 设置为经过核验的路径与 64 位小写十六进制哈希，再执行：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_ablation_inference.sh \
+CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash bars_ablation_inference.sh \
   --variant untied_fixed_alpha_half_no_mixture \
   --deployment hybrid \
   --data-dir data/beauty \
@@ -109,7 +111,7 @@ CUDA_VISIBLE_DEVICES=0 NPROC_PER_NODE=1 bash copmrec_ablation_inference.sh \
 
 `--split validation` 对应 `evaluation` 数据目录，`--split testing` 对应 `testing`。当前三个匹配消融使用同一 ablation 入口，变体分别为 `shared_fixed_alpha_half_no_mixture`、`no_residual_fixed_alpha_half_no_mixture`、`untied_fixed_alpha_half_no_joint_ce_no_mixture`，协议为 `bars-fixed-half-hybrid-m3-20261023-v1`。每臂只消费自身 own-best checkpoint；旧 dense 选点来源与当前 hybrid 来源不能混用。
 
-机制与贡献共用 `bars_untied_mechanism.sh`：`--analysis generation` 固定当前 Full 做生成／排序干预，`--analysis contributions` 读取明确 URI／SHA 的匹配预测做零 forward 分析。历史来源需显式选择。输入与证据范围见 [BARS 方法与运行入口](docs/copmrec-versions.md)。
+机制与贡献共用 `bars_untied_mechanism.sh`：`--analysis generation` 固定当前 Full 做生成／排序干预，`--analysis contributions` 读取明确 URI／SHA 的匹配预测做零 forward 分析。历史来源需显式选择。输入与证据范围见 [BARS 方法与运行入口](docs/bars-versions.md)。
 
 ## 数据、产物与来源追溯
 

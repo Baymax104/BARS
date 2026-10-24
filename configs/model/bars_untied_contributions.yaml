@@ -3,7 +3,7 @@ defaults:
 - bars_untied_analysis_common@_here_
 - _self_
 root:
-  _target_: src.recommendation.copmrec.contributions.CoPMRecContributionDiagnosis
+  _target_: src.recommendation.bars.contributions.BARSContributionDiagnosis
   prediction_bundles:
     _target_: src.data.components.artifacts.load_audited_prediction_bundles
     paths: ${prediction_paths}

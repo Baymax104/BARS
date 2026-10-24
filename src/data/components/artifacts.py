@@ -10,8 +10,7 @@ from contextvars import ContextVar
 
 import torch
 
-from src.data.components.data_models import ModelOutput, PrefixTraceBundle
-from src.data.components.prefix_trace import PREFIX_TRACE_FILENAME, load_prefix_trace
+from src.data.components.data_models import ModelOutput
 from src.utils.file import open_local_or_remote
 from src.utils.pylogger import RankedLogger
 from src.utils.wandb import (
@@ -172,10 +171,6 @@ DEFAULT_ROLE_BY_FIELD = {
     "baseline_recommendation_output_path": "recommendation_output",
     "intervention_recommendation_output_path": "recommendation_output",
     "semantic_id_path": "semantic_id",
-    "fixed_prefix_trace_path": "prefix_trace",
-    "widened_prefix_trace_path": "prefix_trace",
-    "baseline_prefix_trace_path": "prefix_trace",
-    "intervention_prefix_trace_path": "prefix_trace",
 }
 
 
@@ -379,31 +374,9 @@ def load_rkmeans_codebooks(
     return torch.stack(rows).detach().float().contiguous()
 
 
-def load_prefix_trace_artifact(
-    file_path: str,
-    *,
-    field_name: str = "fixed_prefix_trace_path",
-    wandb_entity: str | None = None,
-    wandb_project: str | None = None,
-    wandb_cache_dir: str | None = None,
-) -> PrefixTraceBundle:
-    """Resolve and load a Prefix Trace Artifact by its explicit input role."""
-    resolved_path = resolve_reference(
-        file_path,
-        field_name=field_name,
-        default_entity=wandb_entity,
-        default_project=wandb_project,
-        cache_dir=wandb_cache_dir,
-        default_file=PREFIX_TRACE_FILENAME,
-    )
-    return load_prefix_trace(resolved_path)
-
-
 def _default_file_for_role(role: str) -> str:
     if role in {"checkpoint", "checkpoint_last"}:
         return "*.ckpt"
-    if role == "prefix_trace":
-        return PREFIX_TRACE_FILENAME
     return DEFAULT_BUNDLE_FILE
 
 

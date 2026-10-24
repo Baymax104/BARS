@@ -5,7 +5,7 @@ import subprocess
 import pytest
 from bash_fixture import bash as bash_fixture
 from formal_config_helpers import ROOT, compose_argv
-from test_copmrec_v2_config_script import BASE, launch
+from test_bars_v2_config_script import BASE, launch
 
 bash = bash_fixture
 SCRIPT = "bars_untied_mechanism.sh"
@@ -41,7 +41,7 @@ def test_mechanism_script_composes_correct_component_and_overrides(bash, analysi
     assert "--dry-run" in result.stdout.splitlines()
     assert cfg.callbacks.structured_analysis.output_dir == "logs/test/analysis"
     if analysis == "contributions":
-        assert cfg.model.root._target_.endswith("CoPMRecContributionDiagnosis")
+        assert cfg.model.root._target_.endswith("BARSContributionDiagnosis")
         assert cfg.trainer.root.accelerator == "cpu"
         assert cfg.ckpt_path is None
         assert set(cfg.prediction_paths) == set(cfg.prediction_sha256s) == {"untied"}
@@ -51,7 +51,7 @@ def test_mechanism_script_composes_correct_component_and_overrides(bash, analysi
         assert cfg.model.root.prediction_bundles.expected_source_variants.shared == "shared_fixed_alpha_half_no_mixture"
         assert cfg.model.root.prediction_bundles.expected_deployment_contract.history_exclusion is False
     else:
-        assert cfg.model.root._target_.endswith("CoPMRecMechanismDiagnosis")
+        assert cfg.model.root._target_.endswith("BARSMechanismDiagnosis")
         assert cfg.model.root.backbone.variant == "untied_fixed_alpha_half_no_mixture"
         assert cfg.model.root.backbone.validation_selection_mode == "hybrid"
         assert cfg.model.root.backbone.evaluation_mode == "hybrid"

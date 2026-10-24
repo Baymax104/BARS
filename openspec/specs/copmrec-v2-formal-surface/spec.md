@@ -1,15 +1,15 @@
 # copmrec-v2-formal-surface Specification
 
 ## Purpose
-将 CoPMRec 活动运行面收敛为正式 v2，统一默认训练推理、三臂消融和固定产物诊断，约束计划登记、实际完成核验及授权后的历史清理，保护保留实验所依赖的来源和产物。
+将 BARS 活动运行面收敛为正式 v2，统一默认训练推理、三臂消融和固定产物诊断，约束计划登记、实际完成核验及授权后的历史清理，保护保留实验所依赖的来源和产物。
 ## Requirements
 ### Requirement: 单一正式运行面
 
-系统 SHALL 使用 CoPMRec v2 默认训练、dense 验证与 hybrid 推理；三目标为 SID CE、joint catalog CE、mixture NLL，所有阶段无历史排除；旧 native view 和迭代入口 SHALL 归档移出运行面。显式 dense 辅助推理 SHALL 保留以复现旧 dense 评分证据；hits 主部署分析 SHALL 使用同一 hybrid 协议的四份产物，原 residual 全目录分析 SHALL 保留 dense 身份。
+系统 SHALL 使用 BARS v2 默认训练、dense 验证与 hybrid 推理；三目标为 SID CE、joint catalog CE、mixture NLL，所有阶段无历史排除；旧 native view 和迭代入口 SHALL 归档移出运行面。显式 dense 辅助推理 SHALL 保留以复现旧 dense 评分证据；hits 主部署分析 SHALL 使用同一 hybrid 协议的四份产物，原 residual 全目录分析 SHALL 保留 dense 身份。
 
 #### Scenario: 默认入口
 
-- **WHEN** 用户 compose copmrec_train 或 copmrec_inference
+- **WHEN** 用户 compose bars_train 或 bars_inference
 - **THEN** 获得 v2 模型与准确的无排除配置；训练双卡且 dense 选优，推理单卡 hybrid，严格恢复自身 checkpoint 并记录独立部署契约
 
 #### Scenario: 机制输入协议一致
@@ -25,7 +25,7 @@
 - **THEN** 旧结果保留历史身份，未执行任务保持未完成，已完成任务连接其实际证据；规格迁移本身不启动实验或重置预算
 
 ### Requirement: 依赖约束的历史清理
-在用户明确授权历史清理时，系统 SHALL 在保存旧配置、指标和来源后删除指定旧 CoPMRec run/artifacts，并保护基线、上游及保留 run 所依赖的产物；操作 SHALL 保存回执和真实剩余项。
+在用户明确授权历史清理时，系统 SHALL 在保存旧配置、指标和来源后删除指定旧 BARS run/artifacts，并保护基线、上游及保留 run 所依赖的产物；操作 SHALL 保存回执和真实剩余项。
 
 #### Scenario: 发现外部消费者
 - **WHEN** 待删 artifact 被保留 run 引用
@@ -37,7 +37,7 @@
 
 #### Scenario: 选择消融或机制分析
 
-- **WHEN** 用户 compose copmrec_ablation_train、copmrec_ablation_inference 或 copmrec_diagnosis
+- **WHEN** 用户 compose bars_ablation_train、bars_ablation_inference 或 bars_diagnosis
 - **THEN** 配置只能装配当前支持的臂或分析，错误臂、身份不符及无效 checkpoint 哈希被拒绝，输出由共享 writer 管理；新增训练臂不扩展原四 bundle 分析的范围
 
 ### Requirement: 精确固定 alpha 为一的训练对照

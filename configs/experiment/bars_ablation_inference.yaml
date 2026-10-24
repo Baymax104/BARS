@@ -1,0 +1,51 @@
+# @package _global_
+defaults:
+- bars_inference
+- override /model@model: bars_ablation
+- _self_
+ablation_variant: ???
+group: ${bars_ablation_display.${ablation_variant}.group}
+task_name: bars_v2_${dataset_name}_seed${seed}_${ablation_variant}_${model.root.prediction_mode}_inference
+run_display_name: bars_v2_${dataset_name}_seed${seed}_${bars_ablation_display.${ablation_variant}.name}_${display_evaluation_stages.${evaluation_split}}
+evidence_phase: ablation
+m3_protocol: ${model.ablation_protocol.${ablation_variant}}
+alpha_policy: ${model.ablation_alpha.${ablation_variant}.policy}
+alpha_source: ${model.ablation_alpha.${ablation_variant}.source}
+fixed_mixture_alpha: ${model.ablation_alpha.${ablation_variant}.fixed_mixture_alpha}
+residual_sharing: ${model.ablation_residual.${ablation_variant}.sharing}
+residual_table_count: ${model.ablation_residual.${ablation_variant}.table_count}
+residual_comparison_protocol: ${model.ablation_residual.${ablation_variant}.comparison_protocol}
+formal_release:
+  evidence_phase: ablation
+  variant: ${ablation_variant}
+  m3_protocol: ${m3_protocol}
+logger:
+  wandb:
+    notes: M3 变体自身own-best；部署=${model.root.prediction_mode}；beam=${model.root.generation_candidates}；候选=${deployment_contract.candidate_pool}；joint catalog logits重排；alpha=${alpha_policy}/${deployment_contract.alpha_source}；单卡Testing，无历史排除。
+    tags:
+    - bars-v2
+    - ablation
+    - inference
+    - ${ablation_variant}
+callbacks:
+  checkpoint_identity:
+    _target_: src.common.callbacks.checkpoint_identity.CheckpointIdentityCallback
+    reference: ${ckpt_path}
+    sha256: ${checkpoint_sha256}
+    wandb_entity: ${user}
+    wandb_project: ${project}
+  wandb_artifact_writer:
+    metadata:
+      m3_protocol: ${m3_protocol}
+      ablation_variant: ${ablation_variant}
+      alpha_policy: ${alpha_policy}
+      fixed_mixture_alpha: ${fixed_mixture_alpha}
+      residual_sharing: ${residual_sharing}
+      residual_table_count: ${residual_table_count}
+      residual_comparison_protocol: ${residual_comparison_protocol}
+training_objective:
+  sid_ce: 1.0
+  joint_catalog_ce: ${model.ablation_weights.${ablation_variant}.joint_catalog_ce}
+  mixture_nll: ${model.ablation_weights.${ablation_variant}.mixture_nll}
+  native_view_ce: 0.0
+  native_view_computed: false

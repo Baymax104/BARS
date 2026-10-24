@@ -4,12 +4,12 @@ import pytest
 import torch
 from test_liger import batch, model
 
-from src.recommendation.copmrec.mixture import JointMixtureCoPMRec
+from src.recommendation.bars.mixture import JointMixtureBARS
 from src.recommendation.liger.candidate_guidance import ProbabilityMixtureProcessor
 
 
 def joint(**kwargs):
-    with patch("test_liger.Liger", JointMixtureCoPMRec):
+    with patch("test_liger.Liger", JointMixtureBARS):
         return model(**kwargs)
 
 

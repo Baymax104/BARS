@@ -2,9 +2,9 @@
 set -euo pipefail
 export UV_NO_SYNC="${UV_NO_SYNC:-1}"
 source ./liger_common.sh
-source ./copmrec_m3_common.sh
+source ./bars_m3_common.sh
 [[ "${NPROC_PER_NODE:-1}" == 1 ]] || { echo "Error: mechanism analysis requires one process." >&2; exit 2; }
-copmrec_m3_parse "$@"
+bars_m3_parse "$@"
 [[ -z "$m3_variant" ]] || { echo "Error: mechanism defaults to current Full; select an explicit historical analysis_source_variant with audited sources instead of --variant." >&2; exit 2; }
 identity_args=()
 case "$m3_analysis" in
@@ -14,7 +14,7 @@ case "$m3_analysis" in
   generation)
     # 无覆盖时使用配置中已审计的当前 Full；任何替代来源必须同时声明文件和 SHA。
     if [[ -n "$m3_checkpoint" || -n "$m3_sha" ]]; then
-      copmrec_m3_require_sha
+      bars_m3_require_sha
       [[ -n "$m3_checkpoint" && "$m3_checkpoint" != null ]] || { echo "Error: generation source override requires --checkpoint." >&2; exit 2; }
       identity_args+=("checkpoint_sha256=\"$m3_sha\"")
     fi

@@ -53,7 +53,7 @@ def validate_liger_trace(bundle):
         contract = m.get("copmrec_relevance", {})
         versions = {"v1": "copmrec-relevance-v1", "v1.1": "copmrec-relevance-v1.1"}
         if version not in versions or contract.get("version") != versions[version]:
-            raise ValueError("Relevance trace requires a matching CoPMRec relevance contract.")
+            raise ValueError("Relevance trace requires a matching BARS relevance contract.")
         if version == "v1.1":
             chunk = contract.get("candidate_chunk_size")
             if (

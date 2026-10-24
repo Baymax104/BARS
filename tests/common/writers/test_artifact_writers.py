@@ -449,7 +449,6 @@ def test_official_wandb_logger_configs_keep_run_identity_fields():
         "rqvae_train",
         "rvq_train",
         "tiger_train",
-        "tail_sid_diagnosis",
     ]
 
     for name in logger_names:
